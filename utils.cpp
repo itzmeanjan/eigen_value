@@ -11,7 +11,7 @@ void identity_matrix(sycl::queue &q, float *const mat, const uint dim,
                    sycl::access::target::global_buffer>
         acc_mat{b_mat, h};
 
-    h.parallel_for(
+    h.parallel_for<class kernelIdentityMatrix>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);

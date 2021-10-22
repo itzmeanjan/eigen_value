@@ -19,18 +19,18 @@ void sum_across_rows(queue &q, const float *mat, float *const vec) {
     accessor<float, 1, access::mode::write, access::target::global_buffer>
         acc_vec{b_vec, h};
 
-    h.parallel_for(nd_range<2>{range<2>{N, N}, range<2>{1, B}},
-                   [=](nd_item<2> it) {
-                     const size_t r = it.get_global_id(0);
-                     const size_t c = it.get_global_id(1);
+    h.parallel_for<class kernelSumAcrossRows>(
+        nd_range<2>{range<2>{N, N}, range<2>{1, B}}, [=](nd_item<2> it) {
+          const size_t r = it.get_global_id(0);
+          const size_t c = it.get_global_id(1);
 
-                     float val = acc_mat[r][c];
-                     ONEAPI::atomic_ref<float, ONEAPI::memory_order::relaxed,
-                                        ONEAPI::memory_scope::device,
-                                        access::address_space::global_space>
-                         ref(acc_vec[r]);
-                     ref.fetch_add(val);
-                   });
+          float val = acc_mat[r][c];
+          ONEAPI::atomic_ref<float, ONEAPI::memory_order::relaxed,
+                             ONEAPI::memory_scope::device,
+                             access::address_space::global_space>
+              ref(acc_vec[r]);
+          ref.fetch_add(val);
+        });
   });
   evt.wait();
 }
