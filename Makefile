@@ -7,4 +7,4 @@ PROG = a.out
 
 
 $(PROG): $(SOURCES) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(SOURCES) $(HEADERS) $(INCLUDES)
+	$(CXX) $(CXXFLAGS) $^ $(INCLUDES)
