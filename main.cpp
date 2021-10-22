@@ -19,15 +19,16 @@ void find_max(queue &q, const float *vec, float *max) {
     accessor<float, 1, access::mode::read_write, access::target::global_buffer>
         acc_max{b_max, h};
 
-    h.parallel_for(nd_range<1>{range<1>{N}, range<1>{B}}, [=](nd_item<1> it) {
-      const size_t r = it.get_global_id(0);
+    h.parallel_for<class kernelMaxInVector>(
+        nd_range<1>{range<1>{N}, range<1>{B}}, [=](nd_item<1> it) {
+          const size_t r = it.get_global_id(0);
 
-      ONEAPI::atomic_ref<float, ONEAPI::memory_order::relaxed,
-                         ONEAPI::memory_scope::device,
-                         access::address_space::global_space>
-          ref(acc_max[0]);
-      ref.fetch_max(acc_vec[r]);
-    });
+          ONEAPI::atomic_ref<float, ONEAPI::memory_order::relaxed,
+                             ONEAPI::memory_scope::device,
+                             access::address_space::global_space>
+              ref(acc_max[0]);
+          ref.fetch_max(acc_vec[r]);
+        });
   });
   evt.wait();
 }
@@ -73,6 +74,15 @@ int main() {
 
   check(vec, N);
   std::cout << "sum across row works !" << std::endl;
+
+  float max = 0;
+  generate_vector(q, vec, N, B);
+  find_max(q, vec, &max);
+  assert(max == N);
+  std::cout << "max from vector works !" << std::endl;
+
+  std::free(mat);
+  std::free(vec);
 
   return 0;
 }

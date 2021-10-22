@@ -38,7 +38,7 @@ void generate_vector(sycl::queue &q, float *const vec, const uint dim,
                    sycl::access::target::global_buffer>
         acc_vec{b_vec, h};
 
-    h.parallel_for(
+    h.parallel_for<class kernelGenerateVector>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
