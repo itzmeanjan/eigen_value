@@ -7,6 +7,30 @@ using namespace sycl;
 const uint N = 4;
 const uint B = 4;
 
+void compute_next_matrix(queue &q, float *const mat, const float *sum_vec) {
+  buffer<float, 2> b_mat{mat, range<2>{N, N}};
+  buffer<float, 1> b_sum_vec{sum_vec, range<1>{N}};
+
+  auto evt = q.submit([&](handler &h) {
+    accessor<float, 1, access::mode::read, access::target::global_buffer>
+        acc_sum_vec{b_sum_vec, h};
+    accessor<float, 2, access::mode::read_write, access::target::global_buffer>
+        acc_mat{b_mat, h};
+
+    h.parallel_for<class kernelSimilarityTransform>(
+        nd_range<2>{range<2>{N, N}, range<2>{1, B}}, [=](nd_item<2> it) {
+          const size_t r = it.get_global_id(0);
+          const size_t c = it.get_global_id(1);
+
+          float v0 = acc_sum_vec[r];
+          float v1 = r == c ? v0 : acc_sum_vec[c];
+
+          acc_mat[r][c] *= (1.f / v0) * v1;
+        });
+  });
+  evt.wait();
+}
+
 void initialise_eigen_vector(queue &q, float *const vec) {
   buffer<float, 1> b_vec{vec, range<1>{N}};
 
