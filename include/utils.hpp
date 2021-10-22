@@ -7,3 +7,6 @@ void check(const float *vec, const uint dim);
 
 void generate_vector(sycl::queue &q, float *const vec, const uint dim,
                      const uint wg_size);
+
+float check_eigen_vector(const float *vec, const float *eigen_vec,
+                         const float max, const uint dim);

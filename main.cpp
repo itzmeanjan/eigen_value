@@ -30,11 +30,12 @@ void compute_eigen_vector(queue &q, const float *vec, const float max,
     accessor<float, 1, access::mode::read_write, access::target::global_buffer>
         acc_eigen_vec{b_eigen_vec, h};
 
-    h.parallel_for(nd_range<1>{range<1>{N}, range<1>{B}}, [=](nd_item<1> it) {
-      const size_t r = it.get_global_id(0);
+    h.parallel_for<class kernelComputeEigenVector>(
+        nd_range<1>{range<1>{N}, range<1>{B}}, [=](nd_item<1> it) {
+          const size_t r = it.get_global_id(0);
 
-      acc_eigen_vec[r] *= (acc_vec[r] / max);
-    });
+          acc_eigen_vec[r] *= (acc_vec[r] / max);
+        });
   });
   evt.wait();
 }
@@ -100,6 +101,7 @@ int main() {
 
   float *mat = (float *)malloc(sizeof(float) * N * N);
   float *vec = (float *)malloc(sizeof(float) * N * 1);
+  float *eigen_vec = (float *)malloc(sizeof(float) * N * 1);
 
   identity_matrix(q, mat, N, B);
   sum_across_rows(q, mat, vec);
@@ -113,8 +115,15 @@ int main() {
   assert(max == N);
   std::cout << "max from vector works !" << std::endl;
 
+  initialise_eigen_vector(q, eigen_vec);
+  compute_eigen_vector(q, vec, max, eigen_vec);
+  float max_dev = check_eigen_vector(vec, eigen_vec, max, N);
+  std::cout << "maximum deviation in computing eigen vector " << max_dev
+            << std::endl;
+
   std::free(mat);
   std::free(vec);
+  std::free(eigen_vec);
 
   return 0;
 }

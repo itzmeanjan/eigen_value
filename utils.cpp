@@ -47,3 +47,12 @@ void generate_vector(sycl::queue &q, float *const vec, const uint dim,
         });
   });
 }
+
+float check_eigen_vector(const float *vec, const float *eigen_vec,
+                         const float max, const uint dim) {
+  float max_dev = 0.f;
+  for (uint i = 0; i < dim; i++) {
+    max_dev = std::max(max_dev, std::abs((vec[i] / max) - eigen_vec[i]));
+  }
+  return max_dev;
+}
