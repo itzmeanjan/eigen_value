@@ -27,23 +27,23 @@ def stop(vec):
                                        for i in range(1, len(vec))]))
 
 
-def main():
-    mat = np.array([[1, 1, 2], [2, 1, 3], [2, 3, 5]])
-
-    vec = []
+def max_eigen_value_and_vector(mat):
+    eigen_val = 0
     eigen_vec = np.ones(mat.shape[0])
     while True:
         vec = sum_across_rows(mat)
         eigen_vec = np.array([j * (vec[i]/np.max(vec))
                               for i, j in enumerate(eigen_vec)])
         if stop(vec):
+            eigen_val = vec[0]
             break
 
         mat = compute_next(mat, vec)
 
-    return vec[0], eigen_vec
+    return eigen_val, eigen_vec
 
 
 if __name__ == '__main__':
-    val, vec = main()
+    mat = np.array([[1, 1, 2], [2, 1, 3], [2, 3, 5]])
+    val, vec = max_eigen_value_and_vector(mat)
     print(f'eigen value: {val}\neigen vector: {vec}')
