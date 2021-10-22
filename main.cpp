@@ -7,12 +7,24 @@ using namespace sycl;
 const uint N = 4;
 const uint B = 4;
 
+void initialise_eigen_vector(queue &q, float *const vec) {
+  buffer<float, 1> b_vec{vec, range<1>{N}};
+
+  auto evt = q.submit([&](handler &h) {
+    accessor<float, 1, access::mode::write, access::target::global_buffer>
+        acc_vec{b_vec, h};
+
+    h.fill(acc_vec, 1.f);
+  });
+  evt.wait();
+}
+
 void compute_eigen_vector(queue &q, const float *vec, const float max,
                           float *const eigen_vec) {
   buffer<float, 1> b_vec{vec, range<1>{N}};
   buffer<float, 1> b_eigen_vec{eigen_vec, range<1>{N}};
 
-  q.submit([&](handler &h) {
+  auto evt = q.submit([&](handler &h) {
     accessor<float, 1, access::mode::read, access::target::global_buffer>
         acc_vec{b_vec, h};
     accessor<float, 1, access::mode::read_write, access::target::global_buffer>
@@ -24,6 +36,7 @@ void compute_eigen_vector(queue &q, const float *vec, const float max,
       acc_eigen_vec[r] *= (acc_vec[r] / max);
     });
   });
+  evt.wait();
 }
 
 void find_max(queue &q, const float *vec, float *max) {
