@@ -1,5 +1,6 @@
 #include <CL/sycl.hpp>
 #include <iostream>
+#include <utils.hpp>
 
 using namespace sycl;
 
@@ -34,4 +35,19 @@ void sum_across_rows(queue &q, const float *mat, float *const vec) {
   evt.wait();
 }
 
-int main() { return 0; }
+int main() {
+  device d{default_selector{}};
+  queue q{d};
+  std::cout << "running on " << d.get_info<info::device::name>() << std::endl;
+
+  float *mat = (float *)malloc(sizeof(float) * N * N);
+  float *vec = (float *)malloc(sizeof(float) * N * 1);
+
+  identity_matrix(q, mat, N, B);
+  sum_across_rows(q, mat, vec);
+
+  check(vec, N);
+  std::cout << "sum across row works !" << std::endl;
+
+  return 0;
+}

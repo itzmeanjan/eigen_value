@@ -20,3 +20,9 @@ void identity_matrix(sycl::queue &q, float *const mat, const uint dim,
   });
   evt.wait();
 }
+
+void check(const float *vec, const uint dim) {
+  for (uint i = 0; i < dim; i++) {
+    assert(vec[i] == 1.f);
+  }
+}
