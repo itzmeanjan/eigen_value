@@ -7,6 +7,31 @@ using namespace sycl;
 const uint N = 4;
 const uint B = 4;
 
+void find_max(queue &q, const float *vec, float *max) {
+  *max = 0;
+
+  buffer<float, 1> b_vec{vec, range<1>{N}};
+  buffer<float, 1> b_max{max, range<1>{1}};
+
+  auto evt = q.submit([&](handler &h) {
+    accessor<float, 1, access::mode::read, access::target::global_buffer>
+        acc_vec{b_vec, h};
+    accessor<float, 1, access::mode::read_write, access::target::global_buffer>
+        acc_max{b_max, h};
+
+    h.parallel_for(nd_range<1>{range<1>{N}, range<1>{B}}, [=](nd_item<1> it) {
+      const size_t r = it.get_global_id(0);
+
+      ONEAPI::atomic_ref<float, ONEAPI::memory_order::relaxed,
+                         ONEAPI::memory_scope::device,
+                         access::address_space::global_space>
+          ref(acc_max[0]);
+      ref.fetch_max(acc_vec[r]);
+    });
+  });
+  evt.wait();
+}
+
 void sum_across_rows(queue &q, const float *mat, float *const vec) {
   memset(vec, 0, sizeof(float) * N);
 
