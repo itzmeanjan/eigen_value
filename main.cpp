@@ -7,6 +7,25 @@ using namespace sycl;
 const uint N = 4;
 const uint B = 4;
 
+void compute_eigen_vector(queue &q, const float *vec, const float max,
+                          float *const eigen_vec) {
+  buffer<float, 1> b_vec{vec, range<1>{N}};
+  buffer<float, 1> b_eigen_vec{eigen_vec, range<1>{N}};
+
+  q.submit([&](handler &h) {
+    accessor<float, 1, access::mode::read, access::target::global_buffer>
+        acc_vec{b_vec, h};
+    accessor<float, 1, access::mode::read_write, access::target::global_buffer>
+        acc_eigen_vec{b_eigen_vec, h};
+
+    h.parallel_for(nd_range<1>{range<1>{N}, range<1>{B}}, [=](nd_item<1> it) {
+      const size_t r = it.get_global_id(0);
+
+      acc_eigen_vec[r] *= (acc_vec[r] / max);
+    });
+  });
+}
+
 void find_max(queue &q, const float *vec, float *max) {
   *max = 0;
 
