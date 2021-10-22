@@ -9,6 +9,7 @@ EPS = 1e-5
     Sequential Implementation of https://doi.org/10.1007/978-3-319-11194-0_18
 '''
 
+
 def compute_next(mat, vec):
     sigma = np.diag(vec)
     sigma_inv = np.diag(1/vec)
@@ -29,19 +30,18 @@ def stop(vec):
 def main():
     mat = np.array([[1, 1, 2], [2, 1, 3], [2, 3, 5]])
 
-    vecs = []
+    vec = []
+    eigen_vec = np.ones(mat.shape[0])
     while True:
         vec = sum_across_rows(mat)
-        vecs.append(vec)  # to be used when computing eigen vector
+        eigen_vec = np.array([j * (vec[i]/np.max(vec))
+                              for i, j in enumerate(eigen_vec)])
         if stop(vec):
             break
 
         mat = compute_next(mat, vec)
 
-    val = vecs[-1][0]
-    vec = np.array([reduce(lambda acc, cur: acc * cur, [j[i]/np.max(j)
-                                                        for j in vecs], 1.) for i in range(mat.shape[0])])
-    return val, vec
+    return vec[0], eigen_vec
 
 
 if __name__ == '__main__':
