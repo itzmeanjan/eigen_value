@@ -6,6 +6,42 @@ using namespace sycl;
 
 const uint N = 4;
 const uint B = 4;
+const float EPS = 1e-3;
+
+// Check for stopping criteria, whether it's good time to
+// stop as result as converged to max eigen value which was being
+// searched for
+void stop(queue &q, const float *vec, bool *const ret) {
+  *ret = false;
+
+  buffer<float, 1> b_vec{vec, range<1>{N}};
+  buffer<bool, 1> b_ret{ret, range<1>{1}};
+
+  auto evt = q.submit([&](handler &h) {
+    accessor<float, 1, access::mode::read, access::target::global_buffer> a_vec{
+        b_vec, h};
+    accessor<bool, 1, access::mode::read_write, access::target::global_buffer>
+        a_ret{b_ret, h};
+
+    h.parallel_for(nd_range<1>{range<1>{N - 1}, range<1>{B}, id<1>{1}},
+                   [=](nd_item<1> it) {
+                     ONEAPI::sub_group sg = it.get_sub_group();
+                     const size_t r = it.get_global_id(0);
+
+                     float diff = sycl::abs(a_vec[r] - a_vec[r - 1]);
+                     bool res = ONEAPI::all_of(sg, diff < EPS);
+
+                     if (ONEAPI::leader(sg)) {
+                       ONEAPI::atomic_ref<bool, ONEAPI::memory_order::relaxed,
+                                          ONEAPI::memory_scope::device,
+                                          access::address_space::global_space>
+                           ref{a_ret[0]};
+                       ref.fetch_and(res);
+                     }
+                   });
+  });
+  evt.wait();
+}
 
 void compute_next_matrix(queue &q, float *const mat, const float *sum_vec) {
   buffer<float, 2> b_mat{mat, range<2>{N, N}};
