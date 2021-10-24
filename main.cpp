@@ -183,9 +183,13 @@ int main() {
             << std::endl;
 
   uint ret = 0;
-  stop_criteria_test_data(q, vec, N, B);
+  stop_criteria_test_success_data(q, vec, N, B);
   stop(q, vec, &ret);
-  std::cout << "stopping criteria test result: " << ret << std::endl;
+  std::cout << "stopping criteria test result [success]: " << ret << std::endl;
+
+  stop_criteria_test_fail_data(q, vec, N, B);
+  stop(q, vec, &ret);
+  std::cout << "stopping criteria test result [fail]: " << ret << std::endl;
 
   std::free(mat);
   std::free(vec);

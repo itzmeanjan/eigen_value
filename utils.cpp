@@ -58,8 +58,8 @@ float check_eigen_vector(const float *vec, const float *eigen_vec,
   return max_dev;
 }
 
-void stop_criteria_test__success_data(sycl::queue &q, float *const vec,
-                                      const uint dim, const uint wg_size) {
+void stop_criteria_test_success_data(sycl::queue &q, float *const vec,
+                                     const uint dim, const uint wg_size) {
   memset(vec, 0, sizeof(float) * dim);
   const float EPS = 1e-4;
 
@@ -96,9 +96,14 @@ void stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
     h.parallel_for<class kernelStopCriteriaTestFailData>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
+          sycl::ONEAPI::sub_group sg = it.get_sub_group();
           const size_t r = it.get_global_id(0);
 
-          a_vec[r] = r % 3 != 0 ? r * EPS : (r + 2) * EPS;
+          if (sycl::ONEAPI::leader(sg)) {
+            a_vec[r] = r;
+          } else {
+            a_vec[r] = (r + 1) * EPS;
+          }
         });
   });
   evt.wait();
