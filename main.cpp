@@ -11,34 +11,35 @@ const float EPS = 1e-3;
 // Check for stopping criteria, whether it's good time to
 // stop as result as converged to max eigen value which was being
 // searched for
-void stop(queue &q, const float *vec, bool *const ret) {
-  *ret = false;
+void stop(queue &q, const float *vec, uint *const ret) {
+  *ret = 1; // denotes should stop !
 
   buffer<float, 1> b_vec{vec, range<1>{N}};
-  buffer<bool, 1> b_ret{ret, range<1>{1}};
+  buffer<uint, 1> b_ret{ret, range<1>{1}};
 
   auto evt = q.submit([&](handler &h) {
     accessor<float, 1, access::mode::read, access::target::global_buffer> a_vec{
         b_vec, h};
-    accessor<bool, 1, access::mode::read_write, access::target::global_buffer>
+    accessor<uint, 1, access::mode::read_write, access::target::global_buffer>
         a_ret{b_ret, h};
 
-    h.parallel_for(nd_range<1>{range<1>{N - 1}, range<1>{B}, id<1>{1}},
-                   [=](nd_item<1> it) {
-                     ONEAPI::sub_group sg = it.get_sub_group();
-                     const size_t r = it.get_global_id(0);
+    h.parallel_for<class kernelStopCriteria>(
+        nd_range<1>{range<1>{N - 1}, range<1>{B}, id<1>{1}},
+        [=](nd_item<1> it) {
+          ONEAPI::sub_group sg = it.get_sub_group();
+          const size_t r = it.get_global_id(0);
 
-                     float diff = sycl::abs(a_vec[r] - a_vec[r - 1]);
-                     bool res = ONEAPI::all_of(sg, diff < EPS);
+          float diff = sycl::abs(a_vec[r] - a_vec[r - 1]);
+          bool res = ONEAPI::all_of(sg, diff < EPS);
 
-                     if (ONEAPI::leader(sg)) {
-                       ONEAPI::atomic_ref<bool, ONEAPI::memory_order::relaxed,
-                                          ONEAPI::memory_scope::device,
-                                          access::address_space::global_space>
-                           ref{a_ret[0]};
-                       ref.fetch_and(res);
-                     }
-                   });
+          if (ONEAPI::leader(sg)) {
+            ONEAPI::atomic_ref<uint, ONEAPI::memory_order::relaxed,
+                               ONEAPI::memory_scope::device,
+                               access::address_space::global_space>
+                ref{a_ret[0]};
+            ref.fetch_min(res ? 1 : 0);
+          }
+        });
   });
   evt.wait();
 }
@@ -180,6 +181,11 @@ int main() {
   float max_dev = check_eigen_vector(vec, eigen_vec, max, N);
   std::cout << "maximum deviation in computing eigen vector " << max_dev
             << std::endl;
+
+  uint ret = 0;
+  stop_criteria_test_data(q, vec, N, B);
+  stop(q, vec, &ret);
+  std::cout << "stopping criteria test result: " << ret << std::endl;
 
   std::free(mat);
   std::free(vec);
