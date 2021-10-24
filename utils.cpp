@@ -33,7 +33,7 @@ void generate_vector(sycl::queue &q, float *const vec, const uint dim,
 
   sycl::buffer<float, 1> b_vec{vec, sycl::range<1>{dim}};
 
-  q.submit([&](sycl::handler &h) {
+  auto evt = q.submit([&](sycl::handler &h) {
     sycl::accessor<float, 1, sycl::access::mode::write,
                    sycl::access::target::global_buffer>
         acc_vec{b_vec, h};
@@ -46,6 +46,7 @@ void generate_vector(sycl::queue &q, float *const vec, const uint dim,
           acc_vec[r] = r + 1;
         });
   });
+  evt.wait();
 }
 
 float check_eigen_vector(const float *vec, const float *eigen_vec,
