@@ -96,11 +96,10 @@ void stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
     h.parallel_for<class kernelStopCriteriaTestFailData>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
-          sycl::ONEAPI::sub_group sg = it.get_sub_group();
           const size_t r = it.get_global_id(0);
 
-          if (sycl::ONEAPI::leader(sg)) {
-            a_vec[r] = r;
+          if (r == wg_size - 1) {
+            a_vec[r] = r + 1;
           } else {
             a_vec[r] = (r + 1) * EPS;
           }
