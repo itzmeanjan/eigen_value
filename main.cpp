@@ -1,6 +1,6 @@
 #include "similarity_transform.hpp"
+#include "utils.hpp"
 #include <iostream>
-#include <utils.hpp>
 
 using namespace sycl;
 
