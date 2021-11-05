@@ -18,3 +18,6 @@ main.o: main.cpp
 
 format:
 	find . -name '*.cpp' -o -name '*.hpp' | xargs clang-format -i
+
+clean:
+	find . -name '*.o' -o -name 'run' -o -name 'a.out' -o -name '*.gch' | xargs rm -f
