@@ -1,10 +1,20 @@
-CXX = clang++
-CXXFLAGS = -g --std=c++17 -fsycl
-SOURCES = $(wildcard *.cpp)
-HEADERS = $(wildcard include/*.hpp)
+CXX = dpcpp
+CXXFLAGS = --std=c++17 -Wall
+SYCLFLAGS = -fsycl
 INCLUDES = -I./include
-PROG = a.out
+PROG = run
 
+$(PROG): utils.o similarity_transform.o main.o
+	$(CXX) $(SYCLFLAGS) $^ -o $@
 
-$(PROG): $(SOURCES) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $^ $(INCLUDES)
+utils.o: utils.cpp
+	$(CXX) $(SYCLFLAGS) $(CXXFLAGS) $(INCLUDES) -c $^ -o $@
+
+similarity_transform.o: similarity_transform.cpp
+	$(CXX) $(SYCLFLAGS) $(CXXFLAGS) $(INCLUDES) -c $^ -o $@
+
+main.o: main.cpp
+	$(CXX) $(SYCLFLAGS) $(CXXFLAGS) $(INCLUDES) -c $^ -o $@
+
+format:
+	find . -name '*.cpp' -o -name '*.hpp' | xargs clang-format -i
