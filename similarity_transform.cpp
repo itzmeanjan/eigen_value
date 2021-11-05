@@ -1,20 +1,13 @@
 #include "similarity_transform.hpp"
 
-void sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
-                     const uint count, const uint wg_size) {
-  memset(vec, 0, sizeof(float) * count);
+sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
+                            const uint count, const uint wg_size,
+                            std::vector<sycl::event> &evts) {
+  auto evt_0 = q.memset(vec, 0, sizeof(float) * count);
+  evts.push_back(evt_0);
 
-  sycl::buffer<float, 2> b_mat{mat, sycl::range<2>{count, count}};
-  sycl::buffer<float, 1> b_vec{vec, sycl::range<1>{count}};
-
-  auto evt = q.submit([&](sycl::handler &h) {
-    sycl::accessor<float, 2, sycl::access::mode::read,
-                   sycl::access::target::global_buffer>
-        acc_mat{b_mat, h};
-    sycl::accessor<float, 1, sycl::access::mode::write,
-                   sycl::access::target::global_buffer>
-        acc_vec{b_vec, h};
-
+  auto evt_1 = q.submit([&](sycl::handler &h) {
+    h.depends_on(evts);
     h.parallel_for<class kernelSumAcrossRows>(
         sycl::nd_range<2>{sycl::range<2>{count, count},
                           sycl::range<2>{1, wg_size}},
@@ -22,45 +15,40 @@ void sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
 
-          float val = acc_mat[r][c];
-          sycl::ONEAPI::atomic_ref<float, sycl::ONEAPI::memory_order::relaxed,
-                                   sycl::ONEAPI::memory_scope::device,
-                                   sycl::access::address_space::global_space>
-              ref(acc_vec[r]);
+          float val = *(mat + r * count + c);
+          sycl::ext::oneapi::atomic_ref<
+              float, sycl::ext::oneapi::memory_order::relaxed,
+              sycl::ext::oneapi::memory_scope::device,
+              sycl::access::address_space::global_space>
+              ref(*(vec + r));
           ref.fetch_add(val);
         });
   });
-  evt.wait();
+  return evt_1;
 }
 
-void find_max(sycl::queue &q, const float *vec, float *max, const uint count,
-              const uint wg_size) {
-  *max = 0;
+sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
+                     const uint count, const uint wg_size,
+                     std::vector<sycl::event> &evts) {
+  auto evt_0 = q.memset(max, 0, sizeof(float));
+  evts.push_back(evt_0);
 
-  sycl::buffer<float, 1> b_vec{vec, sycl::range<1>{count}};
-  sycl::buffer<float, 1> b_max{max, sycl::range<1>{1}};
-
-  auto evt = q.submit([&](sycl::handler &h) {
-    sycl::accessor<float, 1, sycl::access::mode::read,
-                   sycl::access::target::global_buffer>
-        acc_vec{b_vec, h};
-    sycl::accessor<float, 1, sycl::access::mode::read_write,
-                   sycl::access::target::global_buffer>
-        acc_max{b_max, h};
-
+  auto evt_1 = q.submit([&](sycl::handler &h) {
+    h.depends_on(evts);
     h.parallel_for<class kernelMaxInVector>(
         sycl::nd_range<1>{sycl::range<1>{count}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
 
-          sycl::ONEAPI::atomic_ref<float, sycl::ONEAPI::memory_order::relaxed,
-                                   sycl::ONEAPI::memory_scope::device,
-                                   sycl::access::address_space::global_space>
-              ref(acc_max[0]);
-          ref.fetch_max(acc_vec[r]);
+          sycl::ext::oneapi::atomic_ref<
+              float, sycl::ext::oneapi::memory_order::relaxed,
+              sycl::ext::oneapi::memory_scope::device,
+              sycl::access::address_space::global_space>
+              ref(*max);
+          ref.fetch_max(*(vec + r));
         });
   });
-  evt.wait();
+  return evt_1;
 }
 
 void compute_eigen_vector(sycl::queue &q, const float *vec, const float max,
@@ -150,16 +138,17 @@ void stop(sycl::queue &q, const float *vec, uint *const ret, const uint count,
         sycl::nd_range<1>{sycl::range<1>{count - 1}, sycl::range<1>{wg_size},
                           sycl::id<1>{1}},
         [=](sycl::nd_item<1> it) {
-          sycl::ONEAPI::sub_group sg = it.get_sub_group();
+          sycl::ext::oneapi::sub_group sg = it.get_sub_group();
           const size_t r = it.get_global_id(0);
 
           float diff = sycl::abs(a_vec[r] - a_vec[r - 1]);
-          bool res = sycl::ONEAPI::all_of(sg, diff < EPS);
+          bool res = sycl::ext::oneapi::all_of(sg, diff < EPS);
 
-          if (sycl::ONEAPI::leader(sg)) {
-            sycl::ONEAPI::atomic_ref<uint, sycl::ONEAPI::memory_order::relaxed,
-                                     sycl::ONEAPI::memory_scope::device,
-                                     sycl::access::address_space::global_space>
+          if (sycl::ext::oneapi::leader(sg)) {
+            sycl::ext::oneapi::atomic_ref<
+                uint, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::device,
+                sycl::access::address_space::global_space>
                 ref{a_ret[0]};
             ref.fetch_min(res ? 1 : 0);
           }
