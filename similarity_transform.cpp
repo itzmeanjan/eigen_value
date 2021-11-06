@@ -5,11 +5,12 @@ void sequential_transform(sycl::queue &q, const float *mat,
                           const uint dim, const uint wg_size) {
   float *_mat = (float *)sycl::malloc_device(sizeof(float) * dim * dim, q);
   float *tmp_vec = (float *)sycl::malloc_device(sizeof(float) * dim, q);
+  float *_eigen_vec = (float *)sycl::malloc_device(sizeof(float) * dim, q);
   float *max_elm = (float *)sycl::malloc_shared(sizeof(float) * 1, q);
   uint *ret = (uint *)sycl::malloc_shared(sizeof(uint) * 1, q);
 
   auto evt_0 = q.memcpy(_mat, mat, sizeof(float) * dim * dim);
-  auto evt_1 = initialise_eigen_vector(q, eigen_vec, dim, {});
+  auto evt_1 = initialise_eigen_vector(q, _eigen_vec, dim, {});
 
   uint64_t i = 0;
   sycl::event evt;
@@ -25,10 +26,10 @@ void sequential_transform(sycl::queue &q, const float *mat,
 
     sycl::event evt_4;
     if (i == 0) {
-      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, eigen_vec, dim,
+      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, _eigen_vec, dim,
                                    wg_size, {evt_1, evt_3});
     } else {
-      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, eigen_vec, dim,
+      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, _eigen_vec, dim,
                                    wg_size, {evt_3});
     }
 
@@ -47,10 +48,14 @@ void sequential_transform(sycl::queue &q, const float *mat,
   q.memcpy(eigen_val, tmp_vec, sizeof(float) * 1);
   evt.wait();
 
+  evt = q.memcpy(eigen_vec, _eigen_vec, sizeof(float) * dim);
   sycl::free(tmp_vec, q);
   sycl::free(_mat, q);
   sycl::free(max_elm, q);
   sycl::free(ret, q);
+  evt.wait();
+
+  sycl::free(_eigen_vec, q);
 }
 
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
