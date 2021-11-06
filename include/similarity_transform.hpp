@@ -3,6 +3,10 @@
 
 inline constexpr float EPS = 1e-3;
 
+void sequential_transform(sycl::queue &q, const float *mat,
+                          float *const eigen_val, float *const eigen_vec,
+                          const uint dim, const uint wg_size);
+
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
                             const uint count, const uint wg_size,
                             std::vector<sycl::event> evts);

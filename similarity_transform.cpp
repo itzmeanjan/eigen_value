@@ -1,5 +1,58 @@
 #include "similarity_transform.hpp"
 
+void sequential_transform(sycl::queue &q, const float *mat,
+                          float *const eigen_val, float *const eigen_vec,
+                          const uint dim, const uint wg_size) {
+  float *_mat = (float *)sycl::malloc_device(sizeof(float) * dim * dim, q);
+  float *tmp_vec = (float *)sycl::malloc_device(sizeof(float) * dim, q);
+  float *max_elm = (float *)sycl::malloc_shared(sizeof(float) * 1, q);
+  uint *ret = (uint *)sycl::malloc_shared(sizeof(uint) * 1, q);
+
+  auto evt_0 = q.memcpy(_mat, mat, sizeof(float) * dim * dim);
+  auto evt_1 = initialise_eigen_vector(q, eigen_vec, dim, {});
+
+  uint64_t i = 0;
+  sycl::event evt;
+  while (true) {
+    sycl::event evt_2;
+    if (i == 0) {
+      evt_2 = sum_across_rows(q, _mat, tmp_vec, dim, wg_size, {evt_0});
+    } else {
+      evt_2 = sum_across_rows(q, _mat, tmp_vec, dim, wg_size, {evt});
+    }
+
+    auto evt_3 = find_max(q, tmp_vec, max_elm, dim, wg_size, {evt_2});
+
+    sycl::event evt_4;
+    if (i == 0) {
+      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, eigen_vec, dim,
+                                   wg_size, {evt_1, evt_3});
+    } else {
+      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, eigen_vec, dim,
+                                   wg_size, {evt_3});
+    }
+
+    auto evt_5 = stop(q, tmp_vec, ret, dim, wg_size, {evt_3});
+    evt_5.wait();
+
+    if (*ret == 1) {
+      evt = evt_4;
+      break;
+    }
+
+    evt = compute_next_matrix(q, _mat, tmp_vec, dim, wg_size, {});
+    i++;
+  }
+
+  q.memcpy(eigen_val, tmp_vec, sizeof(float) * 1);
+  evt.wait();
+
+  sycl::free(tmp_vec, q);
+  sycl::free(_mat, q);
+  sycl::free(max_elm, q);
+  sycl::free(ret, q);
+}
+
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
                             const uint count, const uint wg_size,
                             std::vector<sycl::event> evts) {
