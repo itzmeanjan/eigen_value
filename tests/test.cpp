@@ -52,5 +52,33 @@ int main() {
   sycl::free(vec, q);
   sycl::free(eigen_vec, q);
 
+  mat = (float *)malloc(sizeof(float) * 3 * 3);
+  eigen_vec = (float *)malloc(sizeof(float) * 3 * 1);
+  float *eigen_val = (float *)malloc(sizeof(float) * 1);
+
+  *(mat + 0 * 3 + 0) = 1;
+  *(mat + 0 * 3 + 1) = 1;
+  *(mat + 0 * 3 + 2) = 2;
+
+  *(mat + 1 * 3 + 0) = 2;
+  *(mat + 1 * 3 + 1) = 1;
+  *(mat + 1 * 3 + 2) = 3;
+
+  *(mat + 2 * 3 + 0) = 2;
+  *(mat + 2 * 3 + 1) = 3;
+  *(mat + 2 * 3 + 2) = 5;
+
+  sequential_transform(q, mat, eigen_val, eigen_vec, 3, 3);
+
+  assert(abs(*eigen_val - 7.53114) < EPS);
+  assert(abs(*(eigen_vec + 0) - 0.394074) < EPS);
+  assert(abs(*(eigen_vec + 1) - 0.578844) < EPS);
+  assert(abs(*(eigen_vec + 2) - 0.997451) < EPS);
+  std::cout << "sequential transform worked !" << std::endl;
+
+  std::free(mat);
+  std::free(eigen_val);
+  std::free(eigen_vec);
+
   return 0;
 }
