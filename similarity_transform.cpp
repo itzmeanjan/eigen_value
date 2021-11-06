@@ -26,10 +26,10 @@ void sequential_transform(sycl::queue &q, const float *mat,
 
     sycl::event evt_4;
     if (i == 0) {
-      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, _eigen_vec, dim,
+      evt_4 = compute_eigen_vector(q, tmp_vec, max_elm, _eigen_vec, dim,
                                    wg_size, {evt_1, evt_3});
     } else {
-      evt_4 = compute_eigen_vector(q, tmp_vec, *max_elm, _eigen_vec, dim,
+      evt_4 = compute_eigen_vector(q, tmp_vec, max_elm, _eigen_vec, dim,
                                    wg_size, {evt_3});
     }
 
@@ -112,7 +112,7 @@ sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
 }
 
 sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
-                                 const float max, float *const eigen_vec,
+                                 const float *max, float *const eigen_vec,
                                  const uint count, const uint wg_size,
                                  std::vector<sycl::event> evts) {
   auto evt = q.submit([&](sycl::handler &h) {
@@ -122,7 +122,7 @@ sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
 
-          *(eigen_vec + r) *= (*(vec + r) / max);
+          *(eigen_vec + r) *= (*(vec + r) / *max);
         });
   });
 

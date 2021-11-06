@@ -16,7 +16,7 @@ sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
                      std::vector<sycl::event> evts);
 
 sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
-                                 const float max, float *const eigen_vec,
+                                 const float *max, float *const eigen_vec,
                                  const uint count, const uint wg_size,
                                  std::vector<sycl::event> evts);
 

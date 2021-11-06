@@ -31,7 +31,7 @@ int main() {
   std::cout << "max from vector works !" << std::endl;
 
   initialise_eigen_vector(q, eigen_vec, N, {}).wait();
-  compute_eigen_vector(q, vec, *max, eigen_vec, N, B, {}).wait();
+  compute_eigen_vector(q, vec, max, eigen_vec, N, B, {}).wait();
 
   float max_dev = check_eigen_vector(vec, eigen_vec, *max, N);
   std::cout << "maximum deviation in computing eigen vector " << max_dev
