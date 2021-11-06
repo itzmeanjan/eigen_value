@@ -1,8 +1,7 @@
 #include <utils.hpp>
 
 sycl::event identity_matrix(sycl::queue &q, float *const mat, const uint dim,
-                            const uint wg_size,
-                            std::vector<sycl::event> &evts) {
+                            const uint wg_size, std::vector<sycl::event> evts) {
   auto evt_0 = q.memset(mat, 0, sizeof(float) * dim * dim);
   evts.push_back(evt_0);
 
@@ -25,8 +24,7 @@ void check(const float *vec, const uint dim) {
 }
 
 sycl::event generate_vector(sycl::queue &q, float *const vec, const uint dim,
-                            const uint wg_size,
-                            std::vector<sycl::event> &evts) {
+                            const uint wg_size, std::vector<sycl::event> evts) {
   auto evt_0 = q.memset(vec, 0, sizeof(float) * dim);
   evts.push_back(evt_0);
 
@@ -54,7 +52,7 @@ float check_eigen_vector(const float *vec, const float *eigen_vec,
 
 sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
                                             const uint dim, const uint wg_size,
-                                            std::vector<sycl::event> &evts) {
+                                            std::vector<sycl::event> evts) {
   const float EPS = 1e-4;
   auto evt_0 = q.memset(vec, 0, sizeof(float) * dim);
   evts.push_back(evt_0);
@@ -72,15 +70,15 @@ sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
 }
 
 sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
-                                         const uint dim, const uint wg_size, ,
-                                         std::vector<sycl::event> &evts) {
+                                         const uint dim, const uint wg_size,
+                                         std::vector<sycl::event> evts) {
   const float EPS = 1e-4;
   auto evt_0 = q.memset(vec, 0, sizeof(float) * dim);
   evts.push_back(evt_0);
 
   auto evt_1 = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
-    h.parallel_for<class kernelStopCriteriaTestSuccessData>(
+    h.parallel_for<class kernelStopCriteriaTestFailData>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);

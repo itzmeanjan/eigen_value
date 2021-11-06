@@ -2,7 +2,7 @@
 
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
                             const uint count, const uint wg_size,
-                            std::vector<sycl::event> &evts) {
+                            std::vector<sycl::event> evts) {
   auto evt_0 = q.memset(vec, 0, sizeof(float) * count);
   evts.push_back(evt_0);
 
@@ -30,7 +30,7 @@ sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
 
 sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
                      const uint count, const uint wg_size,
-                     std::vector<sycl::event> &evts) {
+                     std::vector<sycl::event> evts) {
   auto evt_0 = q.memset(max, 0, sizeof(float));
   evts.push_back(evt_0);
 
@@ -56,7 +56,7 @@ sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
 sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
                                  const float max, float *const eigen_vec,
                                  const uint count, const uint wg_size,
-                                 std::vector<sycl::event> &evts) {
+                                 std::vector<sycl::event> evts) {
   auto evt = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
     h.parallel_for<class kernelComputeEigenVector>(
@@ -73,7 +73,7 @@ sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
 
 sycl::event initialise_eigen_vector(sycl::queue &q, float *const vec,
                                     const uint count,
-                                    std::vector<sycl::event> &evts) {
+                                    std::vector<sycl::event> evts) {
   auto evt = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
     h.fill(vec, 1.f, count);
@@ -85,7 +85,7 @@ sycl::event initialise_eigen_vector(sycl::queue &q, float *const vec,
 sycl::event compute_next_matrix(sycl::queue &q, float *const mat,
                                 const float *sum_vec, const uint count,
                                 const uint wg_size,
-                                std::vector<sycl::event> &evts) {
+                                std::vector<sycl::event> evts) {
   auto evt = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
     h.parallel_for<class kernelSimilarityTransform>(
@@ -107,7 +107,7 @@ sycl::event compute_next_matrix(sycl::queue &q, float *const mat,
 
 sycl::event stop(sycl::queue &q, const float *vec, uint *const ret,
                  const uint count, const uint wg_size,
-                 std::vector<sycl::event> &evts) {
+                 std::vector<sycl::event> evts) {
   auto evt_0 = q.single_task([=]() {
     // == 1, denotes should stop !
     *ret = 1;
