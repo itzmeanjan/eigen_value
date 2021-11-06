@@ -1,24 +1,21 @@
 #include <utils.hpp>
 
-void identity_matrix(sycl::queue &q, float *const mat, const uint dim,
-                     const uint wg_size) {
-  memset(mat, 0, sizeof(float) * dim * dim);
+sycl::event identity_matrix(sycl::queue &q, float *const mat, const uint dim,
+                            const uint wg_size,
+                            std::vector<sycl::event> &evts) {
+  auto evt_0 = q.memset(mat, 0, sizeof(float) * dim * dim);
+  evts.push_back(evt_0);
 
-  sycl::buffer<float, 2> b_mat{mat, sycl::range<2>{dim, dim}};
-
-  auto evt = q.submit([&](sycl::handler &h) {
-    sycl::accessor<float, 2, sycl::access::mode::write,
-                   sycl::access::target::global_buffer>
-        acc_mat{b_mat, h};
-
+  auto evt_1 = q.submit([&](sycl::handler &h) {
+    h.depends_on(evts);
     h.parallel_for<class kernelIdentityMatrix>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
-          acc_mat[r][r] = 1.f;
+          *(mat + r * dim + r) = 1.f;
         });
   });
-  evt.wait();
+  return evt_1;
 }
 
 void check(const float *vec, const uint dim) {
@@ -27,26 +24,23 @@ void check(const float *vec, const uint dim) {
   }
 }
 
-void generate_vector(sycl::queue &q, float *const vec, const uint dim,
-                     const uint wg_size) {
-  memset(vec, 0, sizeof(float) * dim);
+sycl::event generate_vector(sycl::queue &q, float *const vec, const uint dim,
+                            const uint wg_size,
+                            std::vector<sycl::event> &evts) {
+  auto evt_0 = q.memset(vec, 0, sizeof(float) * dim);
+  evts.push_back(evt_0);
 
-  sycl::buffer<float, 1> b_vec{vec, sycl::range<1>{dim}};
-
-  auto evt = q.submit([&](sycl::handler &h) {
-    sycl::accessor<float, 1, sycl::access::mode::write,
-                   sycl::access::target::global_buffer>
-        acc_vec{b_vec, h};
-
+  auto evt_1 = q.submit([&](sycl::handler &h) {
+    h.depends_on(evts);
     h.parallel_for<class kernelGenerateVector>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
 
-          acc_vec[r] = r + 1;
+          *(vec + r) = r + 1;
         });
   });
-  evt.wait();
+  return evt_1;
 }
 
 float check_eigen_vector(const float *vec, const float *eigen_vec,
@@ -58,52 +52,44 @@ float check_eigen_vector(const float *vec, const float *eigen_vec,
   return max_dev;
 }
 
-void stop_criteria_test_success_data(sycl::queue &q, float *const vec,
-                                     const uint dim, const uint wg_size) {
-  memset(vec, 0, sizeof(float) * dim);
+sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
+                                            const uint dim, const uint wg_size,
+                                            std::vector<sycl::event> &evts) {
   const float EPS = 1e-4;
+  auto evt_0 = q.memset(vec, 0, sizeof(float) * dim);
+  evts.push_back(evt_0);
 
-  sycl::buffer<float, 1> b_vec{vec, sycl::range<1>{dim}};
-
-  auto evt = q.submit([&](sycl::handler &h) {
-    sycl::accessor<float, 1, sycl::access::mode::write,
-                   sycl::access::target::global_buffer>
-        a_vec{b_vec, h};
-
+  auto evt_1 = q.submit([&](sycl::handler &h) {
+    h.depends_on(evts);
     h.parallel_for<class kernelStopCriteriaTestSuccessData>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
-
-          a_vec[r] = (r + 1) * EPS;
+          *(vec + r) = (r + 1) * EPS;
         });
   });
-  evt.wait();
+  return evt_1;
 }
 
-void stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
-                                  const uint dim, const uint wg_size) {
-  memset(vec, 0, sizeof(float) * dim);
+sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
+                                         const uint dim, const uint wg_size, ,
+                                         std::vector<sycl::event> &evts) {
   const float EPS = 1e-4;
+  auto evt_0 = q.memset(vec, 0, sizeof(float) * dim);
+  evts.push_back(evt_0);
 
-  sycl::buffer<float, 1> b_vec{vec, sycl::range<1>{dim}};
-
-  auto evt = q.submit([&](sycl::handler &h) {
-    sycl::accessor<float, 1, sycl::access::mode::write,
-                   sycl::access::target::global_buffer>
-        a_vec{b_vec, h};
-
-    h.parallel_for<class kernelStopCriteriaTestFailData>(
+  auto evt_1 = q.submit([&](sycl::handler &h) {
+    h.depends_on(evts);
+    h.parallel_for<class kernelStopCriteriaTestSuccessData>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
-
           if (r == wg_size - 1) {
-            a_vec[r] = r + 1;
+            *(vec + r) = r + 1;
           } else {
-            a_vec[r] = (r + 1) * EPS;
+            *(vec + r) = (r + 1) * EPS;
           }
         });
   });
-  evt.wait();
+  return evt_1;
 }
