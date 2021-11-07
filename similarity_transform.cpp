@@ -182,11 +182,13 @@ sycl::event stop(sycl::queue &q, const float *vec, uint *const ret,
   auto evt_1 = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
     h.parallel_for<class kernelStopCriteria>(
-        sycl::nd_range<1>{sycl::range<1>{count - 1}, sycl::range<1>{wg_size},
-                          sycl::id<1>{1}},
+        sycl::nd_range<1>{sycl::range<1>{count}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           sycl::ext::oneapi::sub_group sg = it.get_sub_group();
           const size_t r = it.get_global_id(0);
+          if (r == 0) {
+            return;
+          }
 
           float diff = sycl::abs(*(vec + r) - *(vec + (r - 1)));
           bool res = sycl::ext::oneapi::all_of(sg, diff < EPS);
