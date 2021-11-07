@@ -31,7 +31,8 @@ typedef sycl::accessor<float, 1, sycl::access::mode::read_write,
 
 int64_t sequential_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
-                             const uint dim, const uint wg_size);
+                             const uint dim, const uint wg_size,
+                             uint *const iter_count);
 
 sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
                             const uint dim, const uint wg_size,

@@ -3,7 +3,8 @@
 
 int64_t sequential_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
-                             const uint dim, const uint wg_size) {
+                             const uint dim, const uint wg_size,
+                             uint *const iter_count) {
   float *mat_ = (float *)malloc(sizeof(float) * dim * dim);
   float *sum_vec = (float *)malloc(sizeof(float) * dim);
   float *max_elm = (float *)malloc(sizeof(float) * 1);
@@ -23,7 +24,8 @@ int64_t sequential_transform(sycl::queue &q, const float *mat,
 
   tp start = std::chrono::steady_clock::now();
 
-  for (uint i = 0; i < MAX_ITR; i++) {
+  uint i = 0;
+  for (; i < MAX_ITR; i++) {
     sum_across_rows(q, b_mat, b_sum_vec, dim, wg_size, {});
     find_max(q, b_sum_vec, b_max_elm, dim, wg_size, {});
     compute_eigen_vector(q, b_sum_vec, b_max_elm, b_eigen_vec, dim, wg_size,
@@ -38,6 +40,7 @@ int64_t sequential_transform(sycl::queue &q, const float *mat,
 
     compute_next_matrix(q, b_mat, b_sum_vec, dim, wg_size, {});
   }
+  *iter_count = i;
 
   q.wait();
   tp end = std::chrono::steady_clock::now();
