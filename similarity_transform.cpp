@@ -1,8 +1,6 @@
 #include "similarity_transform.hpp"
 #include <chrono>
 
-using tp = std::chrono::_V2::steady_clock::time_point;
-
 int64_t sequential_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
                              const uint dim, const uint wg_size) {
@@ -63,6 +61,81 @@ int64_t sequential_transform(sycl::queue &q, const float *mat,
   sycl::free(_eigen_vec, q);
   return std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
       .count();
+}
+
+sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
+                            const uint dim, const uint wg_size,
+                            std::vector<sycl::event> evts) {
+  q.submit([&](sycl::handler &h) {
+    global_1d_writer acc_vec{vec, h, sycl::no_init};
+    if (!evts.empty()) {
+      h.depends_on(evts);
+    }
+
+    h.fill(acc_vec, 0.f);
+  });
+
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_2d_reader acc_mat{mat, h};
+    global_1d_reader_writer acc_vec{vec, h};
+
+    if (q.get_device().is_gpu()) {
+      local_1d_reader_writer lds(sycl::range<1>{1}, h);
+
+      h.parallel_for<class kernelSumAcrossRowsGPU>(
+          sycl::nd_range<2>{sycl::range<2>{dim, dim},
+                            sycl::range<2>{1, wg_size}},
+          [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
+            const size_t r = it.get_global_id(0);
+            const size_t c = it.get_global_id(1);
+
+            float val = acc_mat[r][c];
+
+            const size_t loc_id = it.get_local_linear_id();
+            if (loc_id == 0) {
+              lds[0] = 0;
+            }
+
+            it.barrier(sycl::access::fence_space::local_space);
+
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::work_group,
+                sycl::access::address_space::local_space>
+                ref(lds[0]);
+            ref.fetch_add(val);
+
+            it.barrier(sycl::access::fence_space::local_space);
+
+            if (loc_id == 0) {
+              sycl::ext::oneapi::atomic_ref<
+                  float, sycl::ext::oneapi::memory_order::relaxed,
+                  sycl::ext::oneapi::memory_scope::device,
+                  sycl::access::address_space::global_space>
+                  ref(acc_vec[r]);
+              ref.fetch_add(lds[0]);
+            }
+          });
+    } else {
+      h.parallel_for<class kernelSumAcrossRowsOthers>(
+          sycl::nd_range<2>{sycl::range<2>{dim, dim},
+                            sycl::range<2>{1, wg_size}},
+          [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
+            const size_t r = it.get_global_id(0);
+            const size_t c = it.get_global_id(1);
+
+            float val = acc_mat[r][c];
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::device,
+                sycl::access::address_space::global_space>
+                ref(acc_vec[r]);
+            ref.fetch_add(val);
+          });
+    }
+  });
+
+  return evt;
 }
 
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
@@ -133,6 +206,41 @@ sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
   });
 
   return evt_1;
+}
+
+sycl::event find_max(sycl::queue &q, buffer_1d vec, buffer_1d max,
+                     const uint dim, const uint wg_size,
+                     std::vector<sycl::event> evts) {
+  q.submit([&](sycl::handler &h) {
+    global_1d_writer acc_max{max, h, sycl::no_init};
+    if (!evts.empty()) {
+      h.depends_on(evts);
+    }
+
+    h.fill(acc_max, 0.f);
+  });
+
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_1d_reader acc_vec{vec, h};
+    global_1d_reader_writer acc_max{max, h};
+
+    h.parallel_for<class kernelMaxInVector>(
+        sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
+        [=](sycl::nd_item<1> it) {
+          const size_t r = it.get_global_id(0);
+
+          float val = acc_vec[r];
+
+          sycl::ext::oneapi::atomic_ref<
+              float, sycl::ext::oneapi::memory_order::relaxed,
+              sycl::ext::oneapi::memory_scope::device,
+              sycl::access::address_space::global_space>
+              ref(acc_max[0]);
+          ref.fetch_max(val);
+        });
+  });
+
+  return evt;
 }
 
 sycl::event find_max(sycl::queue &q, const float *vec, float *const max,

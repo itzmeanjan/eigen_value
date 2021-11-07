@@ -4,6 +4,31 @@
 inline constexpr float EPS = 1e-3;
 inline constexpr uint MAX_ITR = 1000;
 
+typedef std::chrono::_V2::steady_clock::time_point tp;
+typedef sycl::buffer<float, 1> buffer_1d;
+typedef sycl::buffer<float, 2> buffer_2d;
+typedef sycl::accessor<float, 1, sycl::access::mode::read,
+                       sycl::access::target::global_buffer>
+    global_1d_reader;
+typedef sycl::accessor<float, 2, sycl::access::mode::read,
+                       sycl::access::target::global_buffer>
+    global_2d_reader;
+typedef sycl::accessor<float, 1, sycl::access::mode::write,
+                       sycl::access::target::global_buffer>
+    global_1d_writer;
+typedef sycl::accessor<float, 2, sycl::access::mode::write,
+                       sycl::access::target::global_buffer>
+    global_2d_writer;
+typedef sycl::accessor<float, 1, sycl::access::mode::read_write,
+                       sycl::access::target::global_buffer>
+    global_1d_reader_writer;
+typedef sycl::accessor<float, 2, sycl::access::mode::read_write,
+                       sycl::access::target::global_buffer>
+    global_2d_reader_writer;
+typedef sycl::accessor<float, 1, sycl::access::mode::read_write,
+                       sycl::access::target::local>
+    local_1d_reader_writer;
+
 int64_t sequential_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
                              const uint dim, const uint wg_size);
