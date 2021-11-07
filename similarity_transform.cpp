@@ -68,6 +68,7 @@ sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
                             std::vector<sycl::event> evts) {
   q.submit([&](sycl::handler &h) {
     global_1d_writer acc_vec{vec, h, sycl::no_init};
+
     if (!evts.empty()) {
       h.depends_on(evts);
     }
@@ -213,6 +214,7 @@ sycl::event find_max(sycl::queue &q, buffer_1d vec, buffer_1d max,
                      std::vector<sycl::event> evts) {
   q.submit([&](sycl::handler &h) {
     global_1d_writer acc_max{max, h, sycl::no_init};
+
     if (!evts.empty()) {
       h.depends_on(evts);
     }
@@ -225,8 +227,8 @@ sycl::event find_max(sycl::queue &q, buffer_1d vec, buffer_1d max,
     global_1d_reader_writer acc_max{max, h};
 
     h.parallel_for<class kernelMaxInVector>(
-        sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
-        [=](sycl::nd_item<1> it) {
+        sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
+    ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
           const size_t r = it.get_global_id(0);
 
           float val = acc_vec[r];
@@ -268,6 +270,31 @@ sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
   return evt_1;
 }
 
+sycl::event compute_eigen_vector(sycl::queue &q, buffer_1d vec, buffer_1d max,
+                                 buffer_1d eigen_vec, const uint dim,
+                                 const uint wg_size,
+                                 std::vector<sycl::event> evts) {
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_1d_reader_writer acc_eigen_vec{eigen_vec, h};
+    global_1d_reader acc_vec{vec, h};
+    global_1d_reader acc_max{max, h};
+
+    if (!evts.empty()) {
+      h.depends_on(evts);
+    }
+
+    h.parallel_for<class kernelComputeEigenVector>(
+        sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
+    ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
+          const size_t r = it.get_global_id(0);
+
+          acc_eigen_vec[r] *= (acc_vec[r] / acc_max[0]);
+        });
+  });
+
+  return evt;
+}
+
 sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
                                  const float *max, float *const eigen_vec,
                                  const uint count, const uint wg_size,
@@ -286,12 +313,55 @@ sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
   return evt;
 }
 
+sycl::event initialise_eigen_vector(sycl::queue &q, buffer_1d vec,
+                                    const uint dim,
+                                    std::vector<sycl::event> evts) {
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_1d_writer acc_vec{vec, h, sycl::no_init};
+
+    if (!evts.empty()) {
+      h.depends_on(evts);
+    }
+
+    h.fill(acc_vec, 1.f);
+  });
+
+  return evt;
+}
+
 sycl::event initialise_eigen_vector(sycl::queue &q, float *const vec,
                                     const uint count,
                                     std::vector<sycl::event> evts) {
   auto evt = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
     h.fill(vec, 1.f, count);
+  });
+
+  return evt;
+}
+
+sycl::event compute_next_matrix(sycl::queue &q, buffer_2d mat, buffer_1d vec,
+                                const uint dim, const uint wg_size,
+                                std::vector<sycl::event> evts) {
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_2d_reader_writer acc_mat{mat, h};
+    global_1d_reader acc_vec{vec, h};
+
+    if (!evts.empty()) {
+      h.depends_on(evts);
+    }
+
+    h.parallel_for<class kernelSimilarityTransform>(
+        sycl::nd_range<2>{sycl::range<2>{dim, dim}, sycl::range<2>{1, wg_size}},
+        [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
+          const size_t r = it.get_global_id(0);
+          const size_t c = it.get_global_id(1);
+
+          float v0 = acc_vec[r];
+          float v1 = r == c ? v0 : acc_vec[c];
+
+          acc_mat[r][c] *= (1.f / v0) * v1;
+        });
   });
 
   return evt;
@@ -314,6 +384,53 @@ sycl::event compute_next_matrix(sycl::queue &q, float *const mat,
           float v1 = r == c ? v0 : *(sum_vec + c);
 
           *(mat + r * count + c) *= (1.f / v0) * v1;
+        });
+  });
+
+  return evt;
+}
+
+sycl::event stop(sycl::queue &q, buffer_1d vec, sycl::buffer<uint, 1> ret,
+                 const uint dim, const uint wg_size,
+                 std::vector<sycl::event> evts) {
+  using global_flag_reader_writer =
+      sycl::accessor<uint, 1, sycl::access::mode::read_write,
+                     sycl::access::target::global_buffer>;
+
+  q.submit([&](sycl::handler &h) {
+    global_flag_reader_writer acc_ret{ret, h, sycl::no_init};
+
+    if (!evts.empty()) {
+      h.depends_on(evts);
+    }
+
+    h.single_task([=]() { acc_ret[0] = 1; });
+  });
+
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_1d_reader acc_vec{vec, h};
+    global_flag_reader_writer acc_ret{ret, h};
+
+    h.parallel_for<class kernelStopCriteria>(
+        sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
+    ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
+          sycl::ext::oneapi::sub_group sg = it.get_sub_group();
+          const size_t r = it.get_global_id(0);
+          if (r == 0) {
+            return;
+          }
+
+          float diff = sycl::abs(acc_vec[r] - acc_vec[r - 1]);
+          bool res = sycl::all_of_group(sg, diff < EPS);
+
+          if (sycl::ext::oneapi::leader(sg)) {
+            sycl::ext::oneapi::atomic_ref<
+                uint, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::device,
+                sycl::access::address_space::global_space>
+                ref{acc_ret[0]};
+            ref.fetch_min(res ? 1 : 0);
+          }
         });
   });
 
