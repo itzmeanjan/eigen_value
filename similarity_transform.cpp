@@ -1,8 +1,11 @@
 #include "similarity_transform.hpp"
+#include <chrono>
 
-void sequential_transform(sycl::queue &q, const float *mat,
-                          float *const eigen_val, float *const eigen_vec,
-                          const uint dim, const uint wg_size) {
+using tp = std::chrono::_V2::steady_clock::time_point;
+
+int64_t sequential_transform(sycl::queue &q, const float *mat,
+                             float *const eigen_val, float *const eigen_vec,
+                             const uint dim, const uint wg_size) {
   float *_mat = (float *)sycl::malloc_device(sizeof(float) * dim * dim, q);
   float *tmp_vec = (float *)sycl::malloc_device(sizeof(float) * dim, q);
   float *_eigen_vec = (float *)sycl::malloc_device(sizeof(float) * dim, q);
@@ -12,9 +15,10 @@ void sequential_transform(sycl::queue &q, const float *mat,
   auto evt_0 = q.memcpy(_mat, mat, sizeof(float) * dim * dim);
   auto evt_1 = initialise_eigen_vector(q, _eigen_vec, dim, {});
 
-  uint64_t i = 0;
+  tp start = std::chrono::steady_clock::now();
+
   sycl::event evt;
-  while (true) {
+  for (uint i = 0; i < MAX_ITR; i++) {
     sycl::event evt_2;
     if (i == 0) {
       evt_2 = sum_across_rows(q, _mat, tmp_vec, dim, wg_size, {evt_0});
@@ -42,8 +46,9 @@ void sequential_transform(sycl::queue &q, const float *mat,
     }
 
     evt = compute_next_matrix(q, _mat, tmp_vec, dim, wg_size, {});
-    i++;
   }
+
+  tp end = std::chrono::steady_clock::now();
 
   q.memcpy(eigen_val, tmp_vec, sizeof(float) * 1);
   evt.wait();
@@ -56,6 +61,8 @@ void sequential_transform(sycl::queue &q, const float *mat,
   evt.wait();
 
   sycl::free(_eigen_vec, q);
+  return std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+      .count();
 }
 
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,

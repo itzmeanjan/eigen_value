@@ -2,10 +2,11 @@
 #include <CL/sycl.hpp>
 
 inline constexpr float EPS = 1e-3;
+inline constexpr uint MAX_ITR = 1000;
 
-void sequential_transform(sycl::queue &q, const float *mat,
-                          float *const eigen_val, float *const eigen_vec,
-                          const uint dim, const uint wg_size);
+int64_t sequential_transform(sycl::queue &q, const float *mat,
+                             float *const eigen_val, float *const eigen_vec,
+                             const uint dim, const uint wg_size);
 
 sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
                             const uint count, const uint wg_size,
