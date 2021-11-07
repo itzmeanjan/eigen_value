@@ -33,31 +33,27 @@ int64_t sequential_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
                              const uint dim, const uint wg_size);
 
-sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
-                            const uint count, const uint wg_size,
+sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
+                            const uint dim, const uint wg_size,
                             std::vector<sycl::event> evts);
 
-sycl::event find_max(sycl::queue &q, const float *vec, float *const max,
-                     const uint count, const uint wg_size,
+sycl::event find_max(sycl::queue &q, buffer_1d vec, buffer_1d max,
+                     const uint dim, const uint wg_size,
                      std::vector<sycl::event> evts);
 
-sycl::event compute_eigen_vector(sycl::queue &q, const float *vec,
-                                 const float *max, float *const eigen_vec,
-                                 const uint count, const uint wg_size,
+sycl::event compute_eigen_vector(sycl::queue &q, buffer_1d vec, buffer_1d max,
+                                 buffer_1d eigen_vec, const uint dim,
+                                 const uint wg_size,
                                  std::vector<sycl::event> evts);
 
-sycl::event initialise_eigen_vector(sycl::queue &q, float *const vec,
-                                    const uint count,
+sycl::event initialise_eigen_vector(sycl::queue &q, buffer_1d vec,
+                                    const uint dim,
                                     std::vector<sycl::event> evts);
 
-sycl::event compute_next_matrix(sycl::queue &q, float *const mat,
-                                const float *sum_vec, const uint count,
-                                const uint wg_size,
+sycl::event compute_next_matrix(sycl::queue &q, buffer_2d mat, buffer_1d vec,
+                                const uint dim, const uint wg_size,
                                 std::vector<sycl::event> evts);
 
-// Check for stopping criteria, whether it's good time to
-// stop as result has converged to max eigen value which was being
-// searched for
-sycl::event stop(sycl::queue &q, const float *vec, uint *const ret,
-                 const uint count, const uint wg_size,
+sycl::event stop(sycl::queue &q, buffer_1d vec, sycl::buffer<uint, 1> ret,
+                 const uint dim, const uint wg_size,
                  std::vector<sycl::event> evts);
