@@ -1,4 +1,5 @@
-#include <utils.hpp>
+#include "utils.hpp"
+#include <random>
 
 sycl::event identity_matrix(sycl::queue &q, float *const mat, const uint dim,
                             const uint wg_size, std::vector<sycl::event> evts) {
@@ -90,4 +91,16 @@ sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
         });
   });
   return evt_1;
+}
+
+void generate_random_positive_matrix(float *const mat, const uint dim) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(0.f, 1.f);
+
+  for (uint i = 0; i < dim; i++) {
+    for (uint j = 0; j < dim; j++) {
+      *(mat + i * dim + j) = dis(gen) * (float)dim;
+    }
+  }
 }

@@ -19,3 +19,5 @@ sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
 sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
                                          const uint dim, const uint wg_size,
                                          std::vector<sycl::event> evts);
+
+void generate_random_positive_matrix(float *const mat, const uint dim);

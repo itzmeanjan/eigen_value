@@ -1,4 +1,5 @@
 #include "similarity_transform.hpp"
+#include "utils.hpp"
 #include <iostream>
 
 using namespace sycl;
@@ -16,6 +17,7 @@ int main() {
   float *eigen_val = (float *)malloc(sizeof(float) * 1);
   float *eigen_vec = (float *)malloc(sizeof(float) * N * 1);
 
+  generate_random_positive_matrix(mat, N);
   sequential_transform(q, mat, eigen_val, eigen_vec, N, B);
 
   std::free(mat);
