@@ -73,21 +73,63 @@ sycl::event sum_across_rows(sycl::queue &q, const float *mat, float *const vec,
 
   auto evt_1 = q.submit([&](sycl::handler &h) {
     h.depends_on(evts);
-    h.parallel_for<class kernelSumAcrossRows>(
-        sycl::nd_range<2>{sycl::range<2>{count, count},
-                          sycl::range<2>{1, wg_size}},
-        [=](sycl::nd_item<2> it) {
-          const size_t r = it.get_global_id(0);
-          const size_t c = it.get_global_id(1);
 
-          float val = *(mat + r * count + c);
-          sycl::ext::oneapi::atomic_ref<
-              float, sycl::ext::oneapi::memory_order::relaxed,
-              sycl::ext::oneapi::memory_scope::device,
-              sycl::access::address_space::global_space>
-              ref(*(vec + r));
-          ref.fetch_add(val);
-        });
+    if (q.get_device().is_gpu()) {
+      sycl::accessor<float, 1, sycl::access::mode::read_write,
+                     sycl::access::target::local>
+          lds(sycl::range<1>{1}, h);
+
+      h.parallel_for<class kernelSumAcrossRowsGPU>(
+          sycl::nd_range<2>{sycl::range<2>{count, count},
+                            sycl::range<2>{1, wg_size}},
+          [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(16)]] {
+            const size_t r = it.get_global_id(0);
+            const size_t c = it.get_global_id(1);
+
+            float val = *(mat + r * count + c);
+
+            const size_t loc_id = it.get_local_linear_id();
+            if (loc_id == 0) {
+              lds[0] = 0;
+            }
+
+            it.barrier(sycl::access::fence_space::local_space);
+
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::work_group,
+                sycl::access::address_space::local_space>
+                ref(lds[0]);
+            ref.fetch_add(val);
+
+            it.barrier(sycl::access::fence_space::local_space);
+
+            if (loc_id == 0) {
+              sycl::ext::oneapi::atomic_ref<
+                  float, sycl::ext::oneapi::memory_order::relaxed,
+                  sycl::ext::oneapi::memory_scope::device,
+                  sycl::access::address_space::global_space>
+                  ref(*(vec + r));
+              ref.fetch_add(lds[0]);
+            }
+          });
+    } else {
+      h.parallel_for<class kernelSumAcrossRowsOthers>(
+          sycl::nd_range<2>{sycl::range<2>{count, count},
+                            sycl::range<2>{1, wg_size}},
+          [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(16)]] {
+            const size_t r = it.get_global_id(0);
+            const size_t c = it.get_global_id(1);
+
+            float val = *(mat + r * count + c);
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::device,
+                sycl::access::address_space::global_space>
+                ref(*(vec + r));
+            ref.fetch_add(val);
+          });
+    }
   });
 
   return evt_1;
