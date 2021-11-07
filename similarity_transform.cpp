@@ -233,7 +233,7 @@ sycl::event stop(sycl::queue &q, const float *vec, uint *const ret,
           }
 
           float diff = sycl::abs(*(vec + r) - *(vec + (r - 1)));
-          bool res = sycl::ext::oneapi::all_of(sg, diff < EPS);
+          bool res = sycl::all_of_group(sg, diff < EPS);
 
           if (sycl::ext::oneapi::leader(sg)) {
             sycl::ext::oneapi::atomic_ref<
