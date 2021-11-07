@@ -88,10 +88,20 @@ make test
 
 ## Sequential (reference) Implementation
 
-- Run sequential implementation using 👇, while ensuring you've `numpy` installed.
+Run sequential implementation using 👇, while ensuring you've `numpy` installed. It also compares computed maximum eigen value with `numpy` computed result.
 
 ```bash
+python3 -m pip install -U numpy # you may need it
 python3 main.py
+```
 
-# python3 -m pip install -U numpy
+```text
+Sequential Similarity Transform, for finding maximum eigen value ( with vector )
+
+32   x   32               1.27 ms                      5 round(s)
+64   x   64               2.44 ms                      5 round(s)
+128  x  128               9.67 ms                      5 round(s)
+256  x  256              20.58 ms                      4 round(s)
+512  x  512              74.24 ms                      4 round(s)
+1024 x 1024             335.77 ms                      4 round(s)
 ```
