@@ -190,9 +190,11 @@ sycl::event compute_eigen_vector(sycl::queue &q, buffer_1d vec, buffer_1d max,
     h.parallel_for<class kernelComputeEigenVector>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
-          const size_t r = it.get_global_id(0);
+          sycl::ext::oneapi::sub_group sg = it.get_sub_group();
 
-          acc_eigen_vec[r] *= (acc_vec[r] / acc_max[0]);
+          const size_t r = it.get_global_id(0);
+          acc_eigen_vec[r] *=
+              (acc_vec[r] / sg.broadcast(acc_max[0], it.get_local_id(0)));
         });
   });
 
