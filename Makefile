@@ -36,3 +36,11 @@ format:
 
 clean:
 	find . -name '*.o' -o -name 'run' -o -name 'a.out' -o -name '*.gch' | xargs rm -f
+
+aot_cpu:
+	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) -c main.cpp -o main.o $(INCLUDES)
+	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -fsycl-targets=spir64_x86_64-unknown-unknown-sycldevice -Xs "-march=avx2" similarity_transform.cpp utils.cpp main.o
+
+aot_gpu:
+	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) -c main.cpp -o main.o $(INCLUDES)
+	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -fsycl-targets=spir64_gen-unknown-unknown-sycldevice -Xs "-device 0x4905" similarity_transform.cpp utils.cpp main.o
