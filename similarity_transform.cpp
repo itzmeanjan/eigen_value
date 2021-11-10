@@ -158,16 +158,20 @@ sycl::event find_max(sycl::queue &q, buffer_1d vec, buffer_1d max,
     h.parallel_for<class kernelMaxInVector>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
+          sycl::sub_group sg = it.get_sub_group();
           const size_t r = it.get_global_id(0);
 
-          float val = acc_vec[r];
+          float loc_max =
+              sycl::reduce_over_group(sg, acc_vec[r], sycl::maximum<float>());
 
-          sycl::ext::oneapi::atomic_ref<
-              float, sycl::ext::oneapi::memory_order::relaxed,
-              sycl::ext::oneapi::memory_scope::device,
-              sycl::access::address_space::global_space>
-              ref(acc_max[0]);
-          ref.fetch_max(val);
+          if (sycl::ext::oneapi::leader(sg)) {
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::device,
+                sycl::access::address_space::global_space>
+                ref(acc_max[0]);
+            ref.fetch_max(loc_max);
+          }
         });
   });
 
