@@ -23,11 +23,15 @@ int main() {
     float *eigen_vec = (float *)malloc(sizeof(float) * dim * 1);
 
     generate_random_positive_matrix(mat, dim);
-    int64_t tm = sequential_transform(q, mat, eigen_val, eigen_vec, dim, B);
+    uint itr_count = 0;
+    int64_t tm =
+        sequential_transform(q, mat, eigen_val, eigen_vec, dim, B, &itr_count);
 
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
-              << tm << " ms" << std::endl;
+              << tm << " ms"
+              << "\t\t\t" << std::setw(6) << std::right << itr_count
+              << std::endl;
 
     std::free(mat);
     std::free(eigen_val);

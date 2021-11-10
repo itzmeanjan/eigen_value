@@ -194,7 +194,7 @@ sycl::event compute_eigen_vector(sycl::queue &q, buffer_1d vec, buffer_1d max,
 
           const size_t r = it.get_global_id(0);
           acc_eigen_vec[r] *=
-              (acc_vec[r] / sg.broadcast(acc_max[0], it.get_local_id(0)));
+              (acc_vec[r] / sycl::group_broadcast(sg, acc_max[0]));
         });
   });
 
