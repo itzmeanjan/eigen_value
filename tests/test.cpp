@@ -91,7 +91,7 @@ int main() {
   *(mat + 2 * 3 + 1) = 3;
   *(mat + 2 * 3 + 2) = 5;
 
-  sequential_transform(q, mat, eigen_val, eigen_vec, 3, 3, &iter_count);
+  similarity_transform(q, mat, eigen_val, eigen_vec, 3, 3, &iter_count);
 
   assert(abs(*eigen_val - 7.53114) < EPS);
   assert(abs(*(eigen_vec + 0) - 0.394074) < EPS);

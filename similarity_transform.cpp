@@ -1,7 +1,7 @@
 #include "similarity_transform.hpp"
 #include <chrono>
 
-int64_t sequential_transform(sycl::queue &q, const float *mat,
+int64_t similarity_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
                              const uint dim, const uint wg_size,
                              uint *const iter_count) {

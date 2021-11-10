@@ -29,7 +29,7 @@ typedef sycl::accessor<float, 1, sycl::access::mode::read_write,
                        sycl::access::target::local>
     local_1d_reader_writer;
 
-int64_t sequential_transform(sycl::queue &q, const float *mat,
+int64_t similarity_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
                              const uint dim, const uint wg_size,
                              uint *const iter_count);
