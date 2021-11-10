@@ -223,6 +223,8 @@ sycl::event compute_next_matrix(sycl::queue &q, buffer_2d mat, buffer_1d vec,
   auto evt = q.submit([&](sycl::handler &h) {
     global_2d_reader_writer acc_mat{mat, h};
     global_1d_reader acc_vec{vec, h};
+    local_1d_reader_writer acc_loc_row_ds{sycl::range<1>{1}, h};
+    local_1d_reader_writer acc_loc_col_ds{sycl::range<1>{wg_size}, h};
 
     if (!evts.empty()) {
       h.depends_on(evts);
@@ -233,11 +235,19 @@ sycl::event compute_next_matrix(sycl::queue &q, buffer_2d mat, buffer_1d vec,
         [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
+          const size_t ll_id = it.get_local_linear_id();
+          const size_t gl_id = it.get_global_linear_id();
+          sycl::sub_group sg = it.get_sub_group();
 
-          float v0 = acc_vec[r];
-          float v1 = r == c ? v0 : acc_vec[c];
+          if (sycl::ext::oneapi::leader(sg)) {
+            acc_loc_row_ds[0] = acc_vec[r];
+          }
 
-          acc_mat[r][c] *= (1.f / v0) * v1;
+          acc_loc_col_ds[ll_id] = acc_vec[gl_id % dim];
+
+          it.barrier(sycl::access::fence_space::local_space);
+
+          acc_mat[r][c] *= (1.f / acc_loc_row_ds[0]) * acc_loc_col_ds[ll_id];
         });
   });
 
