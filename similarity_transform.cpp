@@ -79,60 +79,25 @@ sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
     global_2d_reader acc_mat{mat, h};
     global_1d_reader_writer acc_vec{vec, h};
 
-    if (q.get_device().is_gpu()) {
-      local_1d_reader_writer lds(sycl::range<1>{1}, h);
+    h.parallel_for<class kernelSumAcrossRowsOthers>(
+        sycl::nd_range<2>{sycl::range<2>{dim, dim}, sycl::range<2>{1, wg_size}},
+        [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
+          sycl::sub_group sg = it.get_sub_group();
+          const size_t r = it.get_global_id(0);
+          const size_t c = it.get_global_id(1);
 
-      h.parallel_for<class kernelSumAcrossRowsGPU>(
-          sycl::nd_range<2>{sycl::range<2>{dim, dim},
-                            sycl::range<2>{1, wg_size}},
-          [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
-            const size_t r = it.get_global_id(0);
-            const size_t c = it.get_global_id(1);
+          float loc_sum =
+              sycl::reduce_over_group(sg, acc_mat[r][c], sycl::plus<float>());
 
-            float val = acc_mat[r][c];
-
-            const size_t loc_id = it.get_local_linear_id();
-            if (loc_id == 0) {
-              lds[0] = 0;
-            }
-
-            it.barrier(sycl::access::fence_space::local_space);
-
-            sycl::ext::oneapi::atomic_ref<
-                float, sycl::ext::oneapi::memory_order::relaxed,
-                sycl::ext::oneapi::memory_scope::work_group,
-                sycl::access::address_space::local_space>
-                ref(lds[0]);
-            ref.fetch_add(val);
-
-            it.barrier(sycl::access::fence_space::local_space);
-
-            if (loc_id == 0) {
-              sycl::ext::oneapi::atomic_ref<
-                  float, sycl::ext::oneapi::memory_order::relaxed,
-                  sycl::ext::oneapi::memory_scope::device,
-                  sycl::access::address_space::global_space>
-                  ref(acc_vec[r]);
-              ref.fetch_add(lds[0]);
-            }
-          });
-    } else {
-      h.parallel_for<class kernelSumAcrossRowsOthers>(
-          sycl::nd_range<2>{sycl::range<2>{dim, dim},
-                            sycl::range<2>{1, wg_size}},
-          [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
-            const size_t r = it.get_global_id(0);
-            const size_t c = it.get_global_id(1);
-
-            float val = acc_mat[r][c];
+          if (sycl::ext::oneapi::leader(sg)) {
             sycl::ext::oneapi::atomic_ref<
                 float, sycl::ext::oneapi::memory_order::relaxed,
                 sycl::ext::oneapi::memory_scope::device,
                 sycl::access::address_space::global_space>
                 ref(acc_vec[r]);
-            ref.fetch_add(val);
-          });
-    }
+            ref.fetch_add(loc_sum);
+          }
+        });
   });
 
   return evt;
