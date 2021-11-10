@@ -112,3 +112,11 @@ void generate_random_positive_matrix(float *const mat, const uint dim) {
     }
   }
 }
+
+void generate_hilbert_matrix(float *const mat, const uint dim) {
+  for (uint i = 0; i < dim; i++) {
+    for (uint j = 0; j < dim; j++) {
+      *(mat + i * dim + j) = (double)1 / (double)(i + j + 1);
+    }
+  }
+}

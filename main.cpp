@@ -5,7 +5,7 @@
 
 using namespace sycl;
 
-const uint N = 1 << 10;
+const uint N = 1 << 13;
 const uint B = 1 << 5;
 
 int main() {
@@ -22,7 +22,7 @@ int main() {
     float *eigen_val = (float *)malloc(sizeof(float) * 1);
     float *eigen_vec = (float *)malloc(sizeof(float) * dim * 1);
 
-    generate_random_positive_matrix(mat, dim);
+    generate_hilbert_matrix(mat, dim);
     uint itr_count = 0;
     int64_t tm =
         similarity_transform(q, mat, eigen_val, eigen_vec, dim, B, &itr_count);
@@ -31,7 +31,7 @@ int main() {
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
               << tm << " ms"
               << "\t\t\t" << std::setw(6) << std::right << itr_count
-              << std::endl;
+              << " round(s)" << std::endl;
 
     std::free(mat);
     std::free(eigen_val);
