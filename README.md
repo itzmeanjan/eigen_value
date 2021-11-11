@@ -50,32 +50,82 @@ make
 
 ### Benchmark Results
 
-I ran parallel implementation of similarity transform algorithm on multiple hardwares, with multiple randomly generated square matrices of various dimensions, while setting maximum iteration count to *1000* and work group size to *32*.
+I ran parallel implementation of similarity transform algorithm on multiple hardwares, with hilbert matrix of various dimensions, while setting maximum iteration count to *1000* and work group size to *32*.
+
+#### On CPU
 
 ```bash
+$ make aot_cpu && ./a.out
+
 running on Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz
 
 Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
 
-32   x   32                              4 ms
-64   x   64                            200 ms
-128  x  128                            203 ms
-256  x  256                            442 ms
-512  x  512                            755 ms
-1024 x 1024                           1860 ms
+32   x   32                             10 ms                        7 round(s)
+64   x   64                              3 ms                        8 round(s)
+128  x  128                              3 ms                        9 round(s)
+256  x  256                              5 ms                       10 round(s)
+512  x  512                             15 ms                       12 round(s)
+1024 x 1024                             49 ms                       13 round(s)
+2048 x 2048                            186 ms                       14 round(s)
+4096 x 4096                            775 ms                       15 round(s)
+8192 x 8192                           3461 ms                       17 round(s)
 ```
 
 ```bash
+$ make && ./run # JIT compiled kernels
+
 running on Intel(R) Xeon(R) Gold 6128 CPU @ 3.40GHz
 
 Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
 
-32   x   32                            150 ms
-64   x   64                            117 ms
-128  x  128                            159 ms
-256  x  256                            182 ms
-512  x  512                            270 ms
-1024 x 1024                            440 ms
+32   x   32                            341 ms                        7 round(s)
+64   x   64                              2 ms                        8 round(s)
+128  x  128                              3 ms                        9 round(s)
+256  x  256                              4 ms                       10 round(s)
+512  x  512                              6 ms                       12 round(s)
+1024 x 1024                             12 ms                       13 round(s)
+2048 x 2048                             34 ms                       14 round(s)
+4096 x 4096                            106 ms                       15 round(s)
+8192 x 8192                            422 ms                       17 round(s)
+```
+
+#### On GPU
+
+```bash
+$ make aot_gpu && ./a.out
+
+running on Intel(R) Iris(R) Xe MAX Graphics [0x4905]
+
+Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
+
+32   x   32                            120 ms                        7 round(s)
+64   x   64                              4 ms                        8 round(s)
+128  x  128                              4 ms                        9 round(s)
+256  x  256                              6 ms                       10 round(s)
+512  x  512                             13 ms                       12 round(s)
+1024 x 1024                             57 ms                       13 round(s)
+2048 x 2048                            247 ms                       14 round(s)
+4096 x 4096                           1251 ms                       15 round(s)
+8192 x 8192                           7358 ms                       17 round(s)
+```
+
+```bash
+$ make && ./run # JIT compiled kernels
+
+running on Intel(R) UHD Graphics P630 [0x3e96]
+
+Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
+
+32   x   32                            129 ms                        7 round(s)
+64   x   64                              5 ms                        8 round(s)
+128  x  128                              5 ms                        9 round(s)
+256  x  256                              6 ms                       10 round(s)
+512  x  512                             10 ms                       12 round(s)
+1024 x 1024                             29 ms                       13 round(s)
+2048 x 2048                            155 ms                       14 round(s)
+4096 x 4096                            931 ms                       15 round(s)
+8192 x 8192                           5995 ms                       17 round(s)
 ```
 
 ## Test
