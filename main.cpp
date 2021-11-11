@@ -22,7 +22,7 @@ int main() {
     float *eigen_val = (float *)malloc(sizeof(float) * 1);
     float *eigen_vec = (float *)malloc(sizeof(float) * dim * 1);
 
-    generate_hilbert_matrix(mat, dim);
+    generate_hilbert_matrix(q, mat, dim);
     uint itr_count = 0;
     int64_t tm =
         similarity_transform(q, mat, eigen_val, eigen_vec, dim, B, &itr_count);

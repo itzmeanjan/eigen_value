@@ -113,10 +113,20 @@ void generate_random_positive_matrix(float *const mat, const uint dim) {
   }
 }
 
-void generate_hilbert_matrix(float *const mat, const uint dim) {
-  for (uint i = 0; i < dim; i++) {
-    for (uint j = 0; j < dim; j++) {
-      *(mat + i * dim + j) = (double)1 / (double)(i + j + 1);
-    }
-  }
+void generate_hilbert_matrix(sycl::queue &q, float *const mat, const uint dim) {
+  buffer_2d buf_mat{mat, sycl::range<2>{dim, dim}};
+
+  auto evt = q.submit([&](sycl::handler &h) {
+    global_2d_writer acc_mat{buf_mat, h, sycl::no_init};
+
+    h.parallel_for(
+        sycl::nd_range<2>{sycl::range<2>{dim, dim}, sycl::range<2>{1, 32}},
+        [=](sycl::nd_item<2> it) {
+          const size_t r = it.get_global_id(0);
+          const size_t c = it.get_global_id(1);
+
+          acc_mat[r][c] = (double)1 / (double)(r + c + 1);
+        });
+  });
+  evt.wait();
 }

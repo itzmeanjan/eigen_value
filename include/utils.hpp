@@ -22,4 +22,4 @@ sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
 
 void generate_random_positive_matrix(float *const mat, const uint dim);
 
-void generate_hilbert_matrix(float *const mat, const uint dim);
+void generate_hilbert_matrix(sycl::queue &q, float *const mat, const uint dim);
