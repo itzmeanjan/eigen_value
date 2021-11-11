@@ -91,14 +91,15 @@ int main() {
   *(mat + 2 * 3 + 1) = 3;
   *(mat + 2 * 3 + 2) = 5;
 
-  similarity_transform(q, mat, eigen_val, eigen_vec, 3, 3, &iter_count);
+  int64_t ts =
+      similarity_transform(q, mat, eigen_val, eigen_vec, 3, 3, &iter_count);
 
   assert(abs(*eigen_val - 7.53114) < EPS);
   assert(abs(*(eigen_vec + 0) - 0.394074) < EPS);
   assert(abs(*(eigen_vec + 1) - 0.578844) < EPS);
   assert(abs(*(eigen_vec + 2) - 0.997451) < EPS);
-  std::cout << "sequential transform worked !\t\t[ " << iter_count << " iterations ]"
-            << std::endl;
+  std::cout << "similarity transform worked !\t\t[ " << iter_count
+            << " iterations ]\t\t" << ts << " ms" << std::endl;
 
   std::free(mat);
   std::free(eigen_val);

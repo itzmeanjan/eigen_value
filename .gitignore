@@ -4,3 +4,4 @@ a.out
 run
 *.o
 lib*.so
+__pycache__
