@@ -121,7 +121,7 @@ void generate_hilbert_matrix(sycl::queue &q, float *const mat, const uint dim) {
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
 
-          acc_mat[r][c] = (double)1 / (double)(r + c + 1);
+          acc_mat[r][c] = 1.f / (float)(r + c + 1);
         });
   });
   evt.wait();
