@@ -1,5 +1,6 @@
 #include "similarity_transform.hpp"
 #include <chrono>
+#include <limits>
 
 int64_t similarity_transform(sycl::queue &q, const float *mat,
                              float *const eigen_val, float *const eigen_vec,
@@ -243,17 +244,23 @@ sycl::event stop(sycl::queue &q, buffer_1d vec, sycl::buffer<uint, 1> ret,
   auto evt = q.submit([&](sycl::handler &h) {
     global_1d_reader acc_vec{vec, h};
     global_flag_reader_writer acc_ret{ret, h};
+    local_1d_reader_writer acc_loc_ds{sycl::range<1>{wg_size}, h};
 
     h.parallel_for<class kernelStopCriteria>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
-          sycl::ext::oneapi::sub_group sg = it.get_sub_group();
-          const size_t r = it.get_global_id(0);
-          if (r == 0) {
-            return;
-          }
+          sycl::sub_group sg = it.get_sub_group();
+          const size_t g_id = it.get_global_id(0);
+          const size_t l_id = it.get_local_id(0);
 
-          float diff = sycl::abs(acc_vec[r] - acc_vec[r - 1]);
+          acc_loc_ds[l_id] = acc_vec[g_id];
+
+          it.barrier(sycl::access::fence_space::local_space);
+
+          float diff =
+              sycl::abs((l_id == wg_size - 1 ? acc_vec[(g_id + 1) % dim]
+                                             : acc_loc_ds[l_id + 1]) -
+                        acc_loc_ds[l_id]);
           bool res = sycl::all_of_group(sg, diff < EPS);
 
           if (sycl::ext::oneapi::leader(sg)) {

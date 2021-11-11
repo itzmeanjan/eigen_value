@@ -58,7 +58,7 @@ float check_eigen_vector(const float *vec, const float *eigen_vec,
 sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
                                             const uint dim, const uint wg_size,
                                             std::vector<sycl::event> evts) {
-  const float EPS = 1e-4;
+  const float EPS = 1e-4f;
   memset(vec, 0, sizeof(float) * dim);
   buffer_1d buf_vec{vec, sycl::range<1>{dim}};
 
@@ -70,7 +70,7 @@ sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
-          acc_vec[r] = (r + 1) * EPS;
+          acc_vec[r] = 1.f + EPS;
         });
   });
   return evt_1;
@@ -79,7 +79,7 @@ sycl::event stop_criteria_test_success_data(sycl::queue &q, float *const vec,
 sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
                                          const uint dim, const uint wg_size,
                                          std::vector<sycl::event> evts) {
-  const float EPS = 1e-4;
+  const float EPS = 1e-4f;
   memset(vec, 0, sizeof(float) * dim);
   buffer_1d buf_vec{vec, sycl::range<1>{dim}};
 
@@ -91,11 +91,7 @@ sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
         [=](sycl::nd_item<1> it) {
           const size_t r = it.get_global_id(0);
-          if (r == wg_size - 1) {
-            acc_vec[r] = r + 1;
-          } else {
-            acc_vec[r] = (r + 1) * EPS;
-          }
+          acc_vec[r] = (float)(r + 1) * EPS;
         });
   });
   return evt_1;
