@@ -12,55 +12,62 @@ int64_t similarity_transform(sycl::queue &q, const float *mat,
   uint *ret = (uint *)malloc(sizeof(uint) * 1);
 
   memcpy(mat_, mat, sizeof(float) * dim * dim);
+  int64_t ts = 0;
 
-  buffer_2d b_mat{mat_, sycl::range<2>{dim, dim}};
-  buffer_1d b_eigen_vec{eigen_vec, sycl::range<1>{dim}};
-  buffer_1d b_eigen_val{eigen_val, sycl::range<1>{1}};
+  // just to automatically destroy buffers
+  // putting in different scope, so that following
+  // std::free doesn't segfault !
+  {
+    buffer_2d b_mat{mat_, sycl::range<2>{dim, dim}};
+    buffer_1d b_eigen_vec{eigen_vec, sycl::range<1>{dim}};
+    buffer_1d b_eigen_val{eigen_val, sycl::range<1>{1}};
 
-  buffer_1d b_sum_vec{sum_vec, sycl::range<1>{dim}};
-  buffer_1d b_max_elm{max_elm, sycl::range<1>{1}};
-  sycl::buffer<uint, 1> b_ret{ret, sycl::range<1>{1}};
+    buffer_1d b_sum_vec{sum_vec, sycl::range<1>{dim}};
+    buffer_1d b_max_elm{max_elm, sycl::range<1>{1}};
+    sycl::buffer<uint, 1> b_ret{ret, sycl::range<1>{1}};
 
-  initialise_eigen_vector(q, b_eigen_vec, dim, {});
+    initialise_eigen_vector(q, b_eigen_vec, dim, {});
 
-  tp start = std::chrono::steady_clock::now();
+    tp start = std::chrono::steady_clock::now();
 
-  uint i = 0;
-  for (; i < MAX_ITR; i++) {
-    sum_across_rows(q, b_mat, b_sum_vec, dim, wg_size, {});
-    find_max(q, b_sum_vec, b_max_elm, dim, wg_size, {});
-    compute_eigen_vector(q, b_sum_vec, b_max_elm, b_eigen_vec, dim, wg_size,
-                         {});
-    stop(q, b_sum_vec, b_ret, dim, wg_size, {});
-    {
-      sycl::host_accessor<uint, 1, sycl::access_mode::read> h_ret{b_ret};
-      if (h_ret[0] == 1) {
-        break;
+    uint i = 0;
+    for (; i < MAX_ITR; i++) {
+      sum_across_rows(q, b_mat, b_sum_vec, dim, wg_size, {});
+      find_max(q, b_sum_vec, b_max_elm, dim, wg_size, {});
+      compute_eigen_vector(q, b_sum_vec, b_max_elm, b_eigen_vec, dim, wg_size,
+                           {});
+      stop(q, b_sum_vec, b_ret, dim, wg_size, {});
+      {
+        sycl::host_accessor<uint, 1, sycl::access_mode::read> h_ret{b_ret};
+        if (h_ret[0] == 1) {
+          break;
+        }
       }
+
+      compute_next_matrix(q, b_mat, b_sum_vec, dim, wg_size, {});
     }
+    *iter_count = i;
 
-    compute_next_matrix(q, b_mat, b_sum_vec, dim, wg_size, {});
+    q.wait();
+    tp end = std::chrono::steady_clock::now();
+    ts = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+             .count();
+
+    q.submit([&](sycl::handler &h) {
+      global_1d_reader acc_sum_vec{b_sum_vec, h, sycl::range<1>{1}};
+      global_1d_writer acc_eigen_val{b_eigen_val, h};
+
+      h.copy(acc_sum_vec, acc_eigen_val);
+    });
+    q.wait();
   }
-  *iter_count = i;
-
-  q.wait();
-  tp end = std::chrono::steady_clock::now();
-
-  q.submit([&](sycl::handler &h) {
-    global_1d_reader acc_sum_vec{b_sum_vec, h, sycl::range<1>{1}};
-    global_1d_writer acc_eigen_val{b_eigen_val, h};
-
-    h.copy(acc_sum_vec, acc_eigen_val);
-  });
-  q.wait();
 
   std::free(mat_);
   std::free(sum_vec);
   std::free(max_elm);
   std::free(ret);
 
-  return std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-      .count();
+  return ts;
 }
 
 sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
