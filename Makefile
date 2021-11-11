@@ -60,7 +60,6 @@ aot_gpu:
 	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -fsycl-targets=spir64_gen-unknown-unknown-sycldevice -Xs "-device 0x4905" similarity_transform.cpp utils.cpp main.o
 
 lib:
-	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c main.cpp -fPIC -o main.o
-	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c similarity_transform.cpp -fPIC -o similarity_transform.o
-	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c utils.cpp -fPIC -o utils.o
-	$(CXX) $(SYCLFLAGS) --shared -fPIC main.o similarity_transform.o utils.o -o libsimilarity_transform.so
+	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c wrapper/similarity_transform.cpp -fPIC -o wrapper/wrapped_similarity_transform.o
+	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c similarity_transform.cpp -fPIC -o wrapper/similarity_transform.o
+	$(CXX) $(SYCLFLAGS) --shared -fPIC wrapper/similarity_transform.o wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so
