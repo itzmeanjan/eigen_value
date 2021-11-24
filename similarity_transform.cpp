@@ -292,6 +292,9 @@ sycl::event stop(sycl::queue &q, buffer_1d vec, sycl::buffer<uint, 1> ret,
   using global_flag_reader_writer =
       sycl::accessor<uint, 1, sycl::access::mode::read_write,
                      sycl::access::target::global_buffer>;
+  using local_flag_reader_writer =
+      sycl::accessor<uint, 1, sycl::access::mode::read_write,
+                     sycl::access::target::local>;
 
   q.submit([&](sycl::handler &h) {
     global_flag_reader_writer acc_ret{ret, h, sycl::no_init};
@@ -306,32 +309,95 @@ sycl::event stop(sycl::queue &q, buffer_1d vec, sycl::buffer<uint, 1> ret,
   auto evt = q.submit([&](sycl::handler &h) {
     global_1d_reader acc_vec{vec, h};
     global_flag_reader_writer acc_ret{ret, h};
-    local_1d_reader_writer acc_loc_ds{sycl::range<1>{wg_size}, h};
+    local_flag_reader_writer lds{sycl::range<1>{1}, h};
 
     h.parallel_for<class kernelStopCriteria>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
+          sycl::group<1> grp = it.get_group();
           sycl::sub_group sg = it.get_sub_group();
+
+          // first let work group leader set local memory
+          // to initial required state
+          if (sycl::ext::oneapi::leader(grp)) {
+            lds[0] = 1U;
+          }
+
+          // wait for all work items in work group to reach here
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
+
           const size_t g_id = it.get_global_id(0);
-          const size_t l_id = it.get_local_id(0);
 
-          acc_loc_ds[l_id] = acc_vec[g_id];
+          // read value at index `i`, if work item's index is `i`
+          // i.e. just read own value
+          float self = acc_vec[g_id];
+          // use subgroup shuffling to obtain value
+          // at index `i + 1`
+          //
+          // this is tricky !
+          //
+          // assume {0, 1, 2, 3} are values kept in 4 work items,
+          // a leftwards shuffling, results into {1, 2, 3, 0}
+          // reception sequence, for work items {0, 1, 2, 3}
+          //
+          // but this is only for subgroups, we've to think about
+          // work groups
+          //
+          // say in our work group we've {0, 1, 2, 3, 4, 5, 6, 7}
+          // and we're explicitly using subgroup size of 4
+          // then after below shuffling work group level reception
+          // sequence must look like {1, 2, 3, 0, 5, 6, 7, 4}
+          //
+          // I don't want that, I want to have it received this way
+          // {1, 2, 3, 4, 5, 6, 7, 0}
+          //
+          // as next is not going to be what it's supposed to be
+          // at subgroup boundary, thus I keep below conditional block
+          // which exactly solves that problem by performing
+          // an expensive global memory read
+          //
+          // I want to reduce global memory read/ write as much as possible
+          // but this is it as of now !
+          float next = sg.shuffle_down(self, 1);
 
-          it.barrier(sycl::access::fence_space::local_space);
+          if (sg.get_local_id()[0] == (sg.get_local_range()[0] - 1)) {
+            next = acc_vec[(g_id + 1) % dim];
+          }
 
-          float diff =
-              sycl::abs((l_id == wg_size - 1 ? acc_vec[(g_id + 1) % dim]
-                                             : acc_loc_ds[l_id + 1]) -
-                        acc_loc_ds[l_id]);
+          float diff = sycl::abs(self - next);
+          // check whether all good in subgroup level
           bool res = sycl::all_of_group(sg, diff < EPS);
 
+          // only let subgroup leader update status and put it
+          // in local memory
+          // use atomic op, because I don't know yet whether
+          // there's only one subgroup in work group or not
+          //
+          // anyway local memory is shared among work group participants
+          // so all subgroups have access to it
+          //
+          // if not handled carefully might result into data race
           if (sycl::ext::oneapi::leader(sg)) {
+            sycl::ext::oneapi::atomic_ref<
+                uint, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::work_group,
+                sycl::access::address_space::local_space>
+                ref{lds[0]};
+            ref.fetch_min(res ? 1 : 0);
+          }
+
+          // wait for all work items in work group to reach this point
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
+
+          // finally only work group leader writes work group result
+          // back to global memory, from local memory
+          if (sycl::ext::oneapi::leader(grp)) {
             sycl::ext::oneapi::atomic_ref<
                 uint, sycl::ext::oneapi::memory_order::relaxed,
                 sycl::ext::oneapi::memory_scope::device,
                 sycl::access::address_space::global_space>
                 ref{acc_ret[0]};
-            ref.fetch_min(res ? 1 : 0);
+            ref.fetch_min(lds[0] ? 1 : 0);
           }
         });
   });
