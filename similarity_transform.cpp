@@ -87,24 +87,29 @@ sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
     global_1d_reader_writer acc_vec{vec, h};
     local_1d_reader_writer lds{sycl::range<1>{1}, h};
 
-    h.parallel_for<class kernelSumAcrossRowsOthers>(
+    h.parallel_for<class kernelSumAcrossAllRows>(
         sycl::nd_range<2>{sycl::range<2>{dim, dim}, sycl::range<2>{1, wg_size}},
         [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
           sycl::group<2> grp = it.get_group();
           sycl::sub_group sg = it.get_sub_group();
 
+          // let work group leader reset local memory
           if (sycl::ext::oneapi::leader(grp)) {
             lds[0] = 0.f;
           }
 
+          // make sure everyone in work group has arrived here
           sycl::group_barrier(grp, sycl::memory_scope::work_group);
 
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
 
+          // compute sum of all subgroup elements, using reduction functionality
           float loc_sum =
               sycl::reduce_over_group(sg, acc_mat[r][c], sycl::plus<float>());
 
+          // let subgroup leader atomically add subgroup-local-sum to local
+          // memory
           if (sycl::ext::oneapi::leader(sg)) {
             sycl::ext::oneapi::atomic_ref<
                 float, sycl::ext::oneapi::memory_order::relaxed,
@@ -114,8 +119,11 @@ sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
             ref.fetch_add(loc_sum);
           }
 
+          // wait for all in work group to reach here
           sycl::group_barrier(grp, sycl::memory_scope::work_group);
 
+          // only leader of work group atomically adds workgroup-local-sum
+          // to destination memory location in global memory
           if (sycl::ext::oneapi::leader(grp)) {
             sycl::ext::oneapi::atomic_ref<
                 float, sycl::ext::oneapi::memory_order::relaxed,
@@ -146,23 +154,51 @@ sycl::event find_max(sycl::queue &q, buffer_1d vec, buffer_1d max,
   auto evt = q.submit([&](sycl::handler &h) {
     global_1d_reader acc_vec{vec, h};
     global_1d_reader_writer acc_max{max, h};
+    local_1d_reader_writer lds{sycl::range<1>{1}, h};
 
     h.parallel_for<class kernelMaxInVector>(
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
+          sycl::group<1> grp = it.get_group();
           sycl::sub_group sg = it.get_sub_group();
+
+          // get work group leader to reset local memory allocated
+          if (sycl::ext::oneapi::leader(grp)) {
+            lds[0] = 0.f;
+          }
+
+          // wait for all in work group to reach here
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
+
           const size_t r = it.get_global_id(0);
 
+          // use reduction function to reduce to maximum value held by all
+          // work-items present in current subgroup
           float loc_max =
               sycl::reduce_over_group(sg, acc_vec[r], sycl::maximum<float>());
 
+          // subgroup leader atomically updates local memory
           if (sycl::ext::oneapi::leader(sg)) {
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::work_group,
+                sycl::access::address_space::local_space>
+                ref(lds[0]);
+            ref.fetch_max(loc_max);
+          }
+
+          // wait for all in work group to reach here
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
+
+          // only work group leader writes maximum value computed in this work
+          // group to designated location in global memory
+          if (sycl::ext::oneapi::leader(grp)) {
             sycl::ext::oneapi::atomic_ref<
                 float, sycl::ext::oneapi::memory_order::relaxed,
                 sycl::ext::oneapi::memory_scope::device,
                 sycl::access::address_space::global_space>
                 ref(acc_max[0]);
-            ref.fetch_max(loc_max);
+            ref.fetch_max(lds[0]);
           }
         });
   });
