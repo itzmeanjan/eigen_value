@@ -48,7 +48,6 @@ int64_t similarity_transform(sycl::queue &q, const float *mat,
     }
     *iter_count = i;
 
-    q.wait();
     tp end = std::chrono::steady_clock::now();
     ts = std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
              .count();
@@ -86,11 +85,20 @@ sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
   auto evt = q.submit([&](sycl::handler &h) {
     global_2d_reader acc_mat{mat, h};
     global_1d_reader_writer acc_vec{vec, h};
+    local_1d_reader_writer lds{sycl::range<1>{1}, h};
 
     h.parallel_for<class kernelSumAcrossRowsOthers>(
         sycl::nd_range<2>{sycl::range<2>{dim, dim}, sycl::range<2>{1, wg_size}},
         [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
+          sycl::group<2> grp = it.get_group();
           sycl::sub_group sg = it.get_sub_group();
+
+          if (sycl::ext::oneapi::leader(grp)) {
+            lds[0] = 0.f;
+          }
+
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
+
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
 
@@ -100,10 +108,21 @@ sycl::event sum_across_rows(sycl::queue &q, buffer_2d mat, buffer_1d vec,
           if (sycl::ext::oneapi::leader(sg)) {
             sycl::ext::oneapi::atomic_ref<
                 float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::work_group,
+                sycl::access::address_space::local_space>
+                ref(lds[0]);
+            ref.fetch_add(loc_sum);
+          }
+
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
+
+          if (sycl::ext::oneapi::leader(grp)) {
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
                 sycl::ext::oneapi::memory_scope::device,
                 sycl::access::address_space::global_space>
                 ref(acc_vec[r]);
-            ref.fetch_add(loc_sum);
+            ref.fetch_add(lds[0]);
           }
         });
   });
