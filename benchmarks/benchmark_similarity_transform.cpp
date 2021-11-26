@@ -264,8 +264,51 @@ int64_t benchmark_find_vector_max_v2(sycl::queue &q, const uint dim,
   return tm;
 }
 
-int64_t benchmark_compute_eigen_vector(sycl::queue &q, const uint dim,
-                                       const uint wg_size) {
+int64_t benchmark_compute_eigen_vector_v0(sycl::queue &q, const uint dim,
+                                          const uint wg_size) {
+  float *vec = (float *)malloc(sizeof(float) * dim * 1);
+  float *eigen_vec = (float *)malloc(sizeof(float) * dim * 1);
+  float *max = (float *)malloc(sizeof(float) * 1);
+  int64_t tm = 0;
+
+  generate_random_vector(vec, dim);
+  {
+    buffer_1d buf_vec{vec, sycl::range<1>{dim}};
+    buffer_1d buf_eigen_vec{eigen_vec, sycl::range<1>{dim}};
+    buffer_1d buf_max{max, sycl::range<1>{1}};
+
+    find_max(q, buf_vec, buf_max, dim, wg_size, {}).wait();
+    initialise_eigen_vector(q, buf_eigen_vec, dim, {}).wait();
+
+    tp start = std::chrono::steady_clock::now();
+    q.submit([&](sycl::handler &h) {
+      global_1d_reader_writer acc_eigen_vec{buf_eigen_vec, h};
+      global_1d_reader acc_vec{buf_vec, h};
+      global_1d_reader acc_max{buf_max, h};
+
+      h.parallel_for<class kernelComputeEigenVectorV0>(
+          sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
+      ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
+            const size_t r = it.get_global_id(0);
+            acc_eigen_vec[r] *= (acc_vec[r] / acc_max[0]);
+          });
+    });
+    q.wait();
+    tp end = std::chrono::steady_clock::now();
+
+    tm = std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+             .count();
+  }
+
+  std::free(vec);
+  std::free(eigen_vec);
+  std::free(max);
+
+  return tm;
+}
+
+int64_t benchmark_compute_eigen_vector_v1(sycl::queue &q, const uint dim,
+                                          const uint wg_size) {
   float *vec = (float *)malloc(sizeof(float) * dim * 1);
   float *eigen_vec = (float *)malloc(sizeof(float) * dim * 1);
   float *max = (float *)malloc(sizeof(float) * 1);
