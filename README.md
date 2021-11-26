@@ -50,7 +50,9 @@ make # or make aot_{cpu,gpu}
 
 ### Benchmark Results
 
-I ran parallel implementation of similarity transform algorithm on multiple hardwares, with hilbert matrix of various dimensions, while setting maximum iteration count to *1000* and work group size to *32*.
+I ran parallel implementation of similarity transform algorithm on multiple hardwares, with hilbert matrix of various dimensions, while setting maximum iteration count to *1000* and dynamic work group size.
+
+> Except following ones, I keep detailed benchmark results for all kernels involved in similarity transform method [here](benchmarks/similarity_transform.md).
 
 #### On CPU
 
