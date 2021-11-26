@@ -144,6 +144,50 @@ int64_t benchmark_sum_across_rows_kernel_v2(sycl::queue &q, const uint dim,
   return tm;
 }
 
+int64_t benchmark_find_vector_max_v0(sycl::queue &q, const uint dim,
+                                     const uint wg_size) {
+  float *vec = (float *)malloc(sizeof(float) * dim * 1);
+  float *max = (float *)malloc(sizeof(float) * 1);
+  int64_t tm = 0;
+
+  generate_random_vector(vec, dim);
+  {
+    buffer_1d buf_vec{vec, sycl::range<1>{dim}};
+    buffer_1d buf_max{max, sycl::range<1>{1}};
+
+    tp start = std::chrono::steady_clock::now();
+
+    q.submit([&](sycl::handler &h) {
+      global_1d_reader acc_vec{buf_vec, h};
+      global_1d_reader_writer acc_max{buf_max, h};
+
+      h.parallel_for(
+          sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
+          [=](sycl::nd_item<1> it) {
+            const size_t r = it.get_global_id(0);
+
+            sycl::ext::oneapi::atomic_ref<
+                float, sycl::ext::oneapi::memory_order::relaxed,
+                sycl::ext::oneapi::memory_scope::device,
+                sycl::access::address_space::global_space>
+                ref(acc_max[0]);
+            ref.fetch_max(acc_vec[r]);
+          });
+    });
+    q.wait();
+
+    tp end = std::chrono::steady_clock::now();
+
+    tm = std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+             .count();
+  }
+
+  std::free(vec);
+  std::free(max);
+
+  return tm;
+}
+
 int64_t benchmark_find_vector_max(sycl::queue &q, const uint dim,
                                   const uint wg_size) {
   float *vec = (float *)malloc(sizeof(float) * dim * 1);
