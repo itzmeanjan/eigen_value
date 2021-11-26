@@ -87,7 +87,19 @@ int main() {
   for (uint i = 7; i <= 13; i++) {
     const uint dim = 1ul << i;
 
-    int64_t tm = benchmark_find_vector_max(
+    int64_t tm = benchmark_find_vector_max_v1(
+        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+
+    std::cout << std::setw(5) << std::right << dim << "\t\t\t" << std::setw(10)
+              << std::right << (double)tm * 1e-3 << " ms" << std::endl;
+  }
+
+  std::cout << "\n[kernel] Max Value in Vector (v2)\n" << std::endl;
+
+  for (uint i = 7; i <= 13; i++) {
+    const uint dim = 1ul << i;
+
+    int64_t tm = benchmark_find_vector_max_v2(
         q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(5) << std::right << dim << "\t\t\t" << std::setw(10)
