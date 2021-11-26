@@ -31,7 +31,7 @@ int main() {
               << " round(s)" << std::endl;
   }
 
-  std::cout << "\nParallel Sum Across Rows\n" << std::endl;
+  std::cout << "\nParallel Sum Across Rows of Matrix\n" << std::endl;
 
   for (uint i = 7; i <= 13; i++) {
     const uint dim = 1ul << i;
@@ -42,6 +42,18 @@ int main() {
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
               << (double)tm * 1e-3 << " ms" << std::endl;
+  }
+
+  std::cout << "\nParallel Max Value in Vector\n" << std::endl;
+
+  for (uint i = 7; i <= 13; i++) {
+    const uint dim = 1ul << i;
+
+    int64_t tm = benchmark_find_vector_max(
+        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+
+    std::cout << std::setw(5) << std::right << dim << "\t\t\t" << std::setw(10)
+              << std::right << (double)tm * 1e-3 << " ms" << std::endl;
   }
 
   return 0;
