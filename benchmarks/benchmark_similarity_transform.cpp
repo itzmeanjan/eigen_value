@@ -136,3 +136,28 @@ int64_t benchmark_compute_next_matrix(sycl::queue &q, const uint dim,
 
   return tm;
 }
+
+int64_t benchmark_stop_criteria_tester(sycl::queue &q, const uint dim,
+                                       const uint wg_size) {
+  float *vec = (float *)malloc(sizeof(float) * dim * 1);
+  uint *ret = (uint *)malloc(sizeof(uint) * 1);
+  int64_t tm = 0;
+
+  generate_random_vector(vec, dim);
+  {
+    buffer_1d buf_vec{vec, sycl::range<1>{dim}};
+    sycl::buffer<uint, 1> buf_ret{ret, sycl::range<1>{1}};
+
+    tp start = std::chrono::steady_clock::now();
+    stop(q, buf_vec, buf_ret, dim, wg_size, {}).wait();
+    tp end = std::chrono::steady_clock::now();
+
+    tm = std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+             .count();
+  }
+
+  std::free(vec);
+  std::free(ret);
+
+  return tm;
+}
