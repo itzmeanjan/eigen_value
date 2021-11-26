@@ -267,19 +267,23 @@ sycl::event compute_next_matrix(sycl::queue &q, buffer_2d mat, buffer_1d vec,
         [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
+
           const size_t ll_id = it.get_local_linear_id();
           const size_t gl_id = it.get_global_linear_id();
+
+          sycl::group<2> grp = it.get_group();
           sycl::sub_group sg = it.get_sub_group();
 
-          if (sycl::ext::oneapi::leader(sg)) {
+          if (sycl::ext::oneapi::leader(grp)) {
             acc_loc_row_ds[0] = acc_vec[r];
           }
-
           acc_loc_col_ds[ll_id] = acc_vec[gl_id % dim];
 
-          it.barrier(sycl::access::fence_space::local_space);
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
 
-          acc_mat[r][c] *= (1.f / acc_loc_row_ds[0]) * acc_loc_col_ds[ll_id];
+          acc_mat[r][c] *=
+              (1.f / sycl::group_broadcast(sg, acc_loc_row_ds[0])) *
+              acc_loc_col_ds[ll_id];
         });
   });
 

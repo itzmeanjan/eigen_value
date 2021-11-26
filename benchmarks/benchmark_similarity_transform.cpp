@@ -161,7 +161,7 @@ int64_t benchmark_find_vector_max_v0(sycl::queue &q, const uint dim,
       global_1d_reader acc_vec{buf_vec, h};
       global_1d_reader_writer acc_max{buf_max, h};
 
-      h.parallel_for(
+      h.parallel_for<class kernelMaxInVectorV0>(
           sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
           [=](sycl::nd_item<1> it) {
             const size_t r = it.get_global_id(0);
@@ -205,7 +205,7 @@ int64_t benchmark_find_vector_max_v1(sycl::queue &q, const uint dim,
       global_1d_reader acc_vec{buf_vec, h};
       global_1d_reader_writer acc_max{buf_max, h};
 
-      h.parallel_for(
+      h.parallel_for<class kernelMaxInVectorV1>(
           sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}},
           [=](sycl::nd_item<1> it) {
             sycl::sub_group sg = it.get_sub_group();
