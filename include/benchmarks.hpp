@@ -11,3 +11,6 @@ int64_t benchmark_similarity_transform(sycl::queue &q, const uint dim,
 
 int64_t benchmark_find_vector_max(sycl::queue &q, const uint dim,
                                          const uint wg_size);
+
+int64_t benchmark_compute_eigen_vector(sycl::queue &q, const uint dim,
+                                         const uint wg_size);
