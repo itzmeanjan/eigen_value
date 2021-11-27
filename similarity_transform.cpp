@@ -223,10 +223,16 @@ sycl::event compute_eigen_vector(sycl::queue &q, buffer_1d vec, buffer_1d max,
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
           sycl::ext::oneapi::sub_group sg = it.get_sub_group();
-
           const size_t r = it.get_global_id(0);
-          acc_eigen_vec[r] *=
-              (acc_vec[r] / sycl::group_broadcast(sg, acc_max[0]));
+
+          float max_val = 0.f;
+          if (sg.leader()) {
+            max_val = acc_max[0];
+          }
+          sg.barrier();
+
+          max_val = sycl::group_broadcast(sg, max_val);
+          acc_eigen_vec[r] *= (acc_vec[r] / max_val);
         });
   });
 
