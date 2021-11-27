@@ -138,19 +138,20 @@ int main() {
     int64_t tm = benchmark_compute_next_matrix(
         q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
-    std::cout << std::setw(5) << std::right << dim << "\t\t\t" << std::setw(10)
-              << std::right << (double)tm * 1e-3 << " ms" << std::endl;
+    std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
+              << std::right << dim << "\t\t\t" << std::setw(10) << std::right
+              << (double)tm * 1e-3 << " ms" << std::endl;
   }
 
   std::cout << "\n[kernel] Stop Criteria Checker\n" << std::endl;
 
-  for (uint i = 7; i <= 13; i++) {
+  for (uint i = 16; i <= 25; i++) {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_stop_criteria_tester(
         q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
-    std::cout << std::setw(5) << std::right << dim << "\t\t\t" << std::setw(10)
+    std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;
   }
 
