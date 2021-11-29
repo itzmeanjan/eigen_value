@@ -223,10 +223,16 @@ sycl::event compute_eigen_vector(sycl::queue &q, buffer_1d vec, buffer_1d max,
         sycl::nd_range<1>{sycl::range<1>{dim}, sycl::range<1>{wg_size}}, [=
     ](sycl::nd_item<1> it) [[intel::reqd_sub_group_size(32)]] {
           sycl::ext::oneapi::sub_group sg = it.get_sub_group();
-
           const size_t r = it.get_global_id(0);
-          acc_eigen_vec[r] *=
-              (acc_vec[r] / sycl::group_broadcast(sg, acc_max[0]));
+
+          float max_val = 0.f;
+          if (sg.leader()) {
+            max_val = acc_max[0];
+          }
+          sg.barrier();
+
+          max_val = sycl::group_broadcast(sg, max_val);
+          acc_eigen_vec[r] *= (acc_vec[r] / max_val);
         });
   });
 
@@ -267,19 +273,23 @@ sycl::event compute_next_matrix(sycl::queue &q, buffer_2d mat, buffer_1d vec,
         [=](sycl::nd_item<2> it) [[intel::reqd_sub_group_size(32)]] {
           const size_t r = it.get_global_id(0);
           const size_t c = it.get_global_id(1);
+
           const size_t ll_id = it.get_local_linear_id();
           const size_t gl_id = it.get_global_linear_id();
+
+          sycl::group<2> grp = it.get_group();
           sycl::sub_group sg = it.get_sub_group();
 
-          if (sycl::ext::oneapi::leader(sg)) {
+          if (sycl::ext::oneapi::leader(grp)) {
             acc_loc_row_ds[0] = acc_vec[r];
           }
-
           acc_loc_col_ds[ll_id] = acc_vec[gl_id % dim];
 
-          it.barrier(sycl::access::fence_space::local_space);
+          sycl::group_barrier(grp, sycl::memory_scope::work_group);
 
-          acc_mat[r][c] *= (1.f / acc_loc_row_ds[0]) * acc_loc_col_ds[ll_id];
+          acc_mat[r][c] *=
+              (1.f / sycl::group_broadcast(sg, acc_loc_row_ds[0])) *
+              acc_loc_col_ds[ll_id];
         });
   });
 

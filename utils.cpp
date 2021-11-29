@@ -97,15 +97,13 @@ sycl::event stop_criteria_test_fail_data(sycl::queue &q, float *const vec,
   return evt_1;
 }
 
-void generate_random_positive_matrix(float *const mat, const uint dim) {
+void generate_random_vector(float *const vec, const uint dim) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<float> dis(0.f, 1.f);
 
   for (uint i = 0; i < dim; i++) {
-    for (uint j = 0; j < dim; j++) {
-      *(mat + i * dim + j) = dis(gen);
-    }
+    *(vec + i) = dis(gen);
   }
 }
 
