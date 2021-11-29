@@ -181,3 +181,44 @@ Sequential Similarity Transform, for finding maximum eigen value ( with vector )
 512  x  512              74.24 ms                      4 round(s)
 1024 x 1024             335.77 ms                      4 round(s)
 ```
+
+## Python Wrapper
+
+I provide you with one build recipe which can be used for compiling Parallel Similarity Transform's implementation into dynamically linked shared object.
+
+```bash
+make lib
+
+# now check 
+file wrapper/libsimilarity_transform.so
+```
+
+Once shared object is ready, you can now interact with C++ implementation of Maximum EigenValue Finder function from Python wrapper function.
+
+```bash
+pushd wrapper/python
+python3
+```
+
+```python3
+import similarity_transform as st
+
+# must be positive square matrix of float32
+m = st.np.random.random((16, 16)).astype('f')
+
+λ, v, ts, itr = st.similarity_transform(m)
+
+# λ = maximum eigen value
+# v = eigen vector
+# ts = execution time ( in ms )
+# itr = iterations required before convergence
+```
+
+> You may want to take a look at [test case](https://github.com/itzmeanjan/eigen_value/blob/955e9fd4c4f1de59fe1008b151b7cf8c01e41e7d/wrapper/python/test.py#L8) written using Python wrapper.
+
+There's also another script for running tests on random positive square matrices.
+
+```bash
+python3 test.py
+popd
+```
