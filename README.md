@@ -35,13 +35,13 @@ InstalledDir: /opt/intel/oneapi/compiler/2021.4.0/linux/bin
 - Assuming you've all requirements installed on your machine, compile program
 
 ```bash
-make
+make # or make aot_{cpu,gpu}
 ```
 
 - Run produced binary
 
 ```bash
-./run
+./run # or ./a.out
 ```
 
 > Clean up generated object files using `make clean`
@@ -50,9 +50,43 @@ make
 
 ### Benchmark Results
 
-I ran parallel implementation of similarity transform algorithm on multiple hardwares, with hilbert matrix of various dimensions, while setting maximum iteration count to *1000* and work group size to *32*.
+I ran parallel implementation of similarity transform algorithm on multiple hardwares, with hilbert matrix of various dimensions, while setting maximum iteration count to *1000* and dynamic work group size.
+
+> Except following ones, I keep detailed benchmark results for all kernels involved in similarity transform method [here](benchmarks/similarity_transform.md).
 
 #### On CPU
+
+```bash
+$ make aot_cpu && ./a.out
+
+running on Intel(R) Core(TM) i9-10920X CPU @ 3.50GHz
+
+Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
+
+128  x  128			         7 ms			     9 round(s)
+256  x  256			         1 ms			    10 round(s)
+512  x  512			         3 ms			    12 round(s)
+1024 x 1024			         5 ms			    13 round(s)
+2048 x 2048			        18 ms			    14 round(s)
+4096 x 4096			       101 ms			    15 round(s)
+8192 x 8192			       510 ms			    17 round(s)
+```
+
+```bash
+$ make aot_cpu && ./a.out
+
+running on Intel(R) Xeon(R) Platinum 8358 CPU @ 2.60GHz
+
+Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
+
+128  x  128			        22 ms			     9 round(s)
+256  x  256			         6 ms			    10 round(s)
+512  x  512			         7 ms			    12 round(s)
+1024 x 1024			         8 ms			    13 round(s)
+2048 x 2048			        19 ms			    14 round(s)
+4096 x 4096			        40 ms			    15 round(s)
+8192 x 8192			       126 ms			    17 round(s)
+```
 
 ```bash
 $ make aot_cpu && ./a.out
@@ -61,33 +95,29 @@ running on Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz
 
 Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
 
-32   x   32                             10 ms                        7 round(s)
-64   x   64                              3 ms                        8 round(s)
-128  x  128                              3 ms                        9 round(s)
-256  x  256                              5 ms                       10 round(s)
-512  x  512                             15 ms                       12 round(s)
-1024 x 1024                             49 ms                       13 round(s)
-2048 x 2048                            186 ms                       14 round(s)
-4096 x 4096                            775 ms                       15 round(s)
-8192 x 8192                           3461 ms                       17 round(s)
+128  x  128			        11 ms			     9 round(s)
+256  x  256			         6 ms			    10 round(s)
+512  x  512			        16 ms			    12 round(s)
+1024 x 1024			        51 ms			    13 round(s)
+2048 x 2048			       200 ms			    14 round(s)
+4096 x 4096			       847 ms			    15 round(s)
+8192 x 8192			      3759 ms			    17 round(s)
 ```
 
 ```bash
-$ make && ./run # JIT compiled kernels
+$ make aot_cpu && ./a.out
 
 running on Intel(R) Xeon(R) Gold 6128 CPU @ 3.40GHz
 
 Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
 
-32   x   32                            341 ms                        7 round(s)
-64   x   64                              2 ms                        8 round(s)
-128  x  128                              3 ms                        9 round(s)
-256  x  256                              4 ms                       10 round(s)
-512  x  512                              6 ms                       12 round(s)
-1024 x 1024                             12 ms                       13 round(s)
-2048 x 2048                             34 ms                       14 round(s)
-4096 x 4096                            106 ms                       15 round(s)
-8192 x 8192                            422 ms                       17 round(s)
+128  x  128			        18 ms			     9 round(s)
+256  x  256			         4 ms			    10 round(s)
+512  x  512			         6 ms			    12 round(s)
+1024 x 1024			         8 ms			    13 round(s)
+2048 x 2048			        27 ms			    14 round(s)
+4096 x 4096			        82 ms			    15 round(s)
+8192 x 8192			       339 ms			    17 round(s)
 ```
 
 #### On GPU
@@ -99,33 +129,29 @@ running on Intel(R) Iris(R) Xe MAX Graphics [0x4905]
 
 Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
 
-32   x   32                            120 ms                        7 round(s)
-64   x   64                              4 ms                        8 round(s)
-128  x  128                              4 ms                        9 round(s)
-256  x  256                              6 ms                       10 round(s)
-512  x  512                             13 ms                       12 round(s)
-1024 x 1024                             57 ms                       13 round(s)
-2048 x 2048                            247 ms                       14 round(s)
-4096 x 4096                           1251 ms                       15 round(s)
-8192 x 8192                           7358 ms                       17 round(s)
+128  x  128			        10 ms			     9 round(s)
+256  x  256			         8 ms			    10 round(s)
+512  x  512			        14 ms			    12 round(s)
+1024 x 1024			        37 ms			    13 round(s)
+2048 x 2048			       138 ms			    14 round(s)
+4096 x 4096			       564 ms			    15 round(s)
+8192 x 8192			      2509 ms			    17 round(s)
 ```
 
 ```bash
-$ make && ./run # JIT compiled kernels
+$ make && ./run # JIT compiled kernels, check time column of first row of below table [ way more than second row, because kernel being JIT-ed ]
 
 running on Intel(R) UHD Graphics P630 [0x3e96]
 
 Parallel Algorithm using Similarity Transform for finding max eigen value (with vector)
 
-32   x   32                            129 ms                        7 round(s)
-64   x   64                              5 ms                        8 round(s)
-128  x  128                              5 ms                        9 round(s)
-256  x  256                              6 ms                       10 round(s)
-512  x  512                             10 ms                       12 round(s)
-1024 x 1024                             29 ms                       13 round(s)
-2048 x 2048                            155 ms                       14 round(s)
-4096 x 4096                            931 ms                       15 round(s)
-8192 x 8192                           5995 ms                       17 round(s)
+128  x  128			       122 ms			     9 round(s)
+256  x  256			         9 ms			    10 round(s)
+512  x  512			        28 ms			    12 round(s)
+1024 x 1024			       104 ms			    13 round(s)
+2048 x 2048			       446 ms			    14 round(s)
+4096 x 4096			      1858 ms			    15 round(s)
+8192 x 8192			      8259 ms			    17 round(s)
 ```
 
 ## Test
@@ -154,4 +180,45 @@ Sequential Similarity Transform, for finding maximum eigen value ( with vector )
 256  x  256              20.58 ms                      4 round(s)
 512  x  512              74.24 ms                      4 round(s)
 1024 x 1024             335.77 ms                      4 round(s)
+```
+
+## Python Wrapper
+
+I provide you with one build recipe which can be used for compiling Parallel Similarity Transform's implementation into dynamically linked shared object.
+
+```bash
+make lib
+
+# now check 
+file wrapper/libsimilarity_transform.so
+```
+
+Once shared object is ready, you can now interact with C++ implementation of Maximum EigenValue Finder function from Python wrapper function.
+
+```bash
+pushd wrapper/python
+python3
+```
+
+```python3
+import similarity_transform as st
+
+# must be positive square matrix of float32
+m = st.np.random.random((16, 16)).astype('f')
+
+λ, v, ts, itr = st.similarity_transform(m)
+
+# λ = maximum eigen value
+# v = eigen vector
+# ts = execution time ( in ms )
+# itr = iterations required before convergence
+```
+
+> You may want to take a look at [test case](https://github.com/itzmeanjan/eigen_value/blob/955e9fd4c4f1de59fe1008b151b7cf8c01e41e7d/wrapper/python/test.py#L8) written using Python wrapper.
+
+There's also another script for running tests on random positive square matrices.
+
+```bash
+python3 test.py
+popd
 ```
