@@ -65,5 +65,19 @@ aot_gpu:
 
 lib:
 	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c wrapper/similarity_transform.cpp -fPIC -o wrapper/wrapped_similarity_transform.o
-	$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) -c similarity_transform.cpp -fPIC -o wrapper/similarity_transform.o
-	$(CXX) $(SYCLFLAGS) --shared -fPIC wrapper/similarity_transform.o wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so
+	@if lscpu | grep -q 'avx512'; then \
+		echo "Using avx512"; \
+		$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(AOTFLAGS) $(INCLUDES) -fsycl-targets=spir64_x86_64-unknown-unknown-sycldevice -Xs "-march=avx512" --shared -fPIC similarity_transform.cpp wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so; \
+	elif lscpu | grep -q 'avx2'; then \
+		echo "Using avx2"; \
+		$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(AOTFLAGS) $(INCLUDES) -fsycl-targets=spir64_x86_64-unknown-unknown-sycldevice -Xs "-march=avx2" --shared -fPIC similarity_transform.cpp wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so; \
+	elif lscpu | grep -q 'avx'; then \
+		echo "Using avx"; \
+		$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(AOTFLAGS) $(INCLUDES) -fsycl-targets=spir64_x86_64-unknown-unknown-sycldevice -Xs "-march=avx" --shared -fPIC similarity_transform.cpp wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so; \
+	elif lscpu | grep -q 'sse4.2'; then \
+		echo "Using sse4.2"; \
+		$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(AOTFLAGS) $(INCLUDES) -fsycl-targets=spir64_x86_64-unknown-unknown-sycldevice -Xs "-march=sse4.2" --shared -fPIC similarity_transform.cpp wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so; \
+	else \
+		echo "Can't AOT compile using avx, avx2, avx512 or sse4.2"; \
+		$(CXX) $(CXXFLAGS) $(SYCLFLAGS) $(INCLUDES) --shared -fPIC similarity_transform.cpp wrapper/wrapped_similarity_transform.o -o wrapper/libsimilarity_transform.so; \
+	fi
