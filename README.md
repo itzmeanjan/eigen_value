@@ -187,6 +187,7 @@ Sequential Similarity Transform, for finding maximum eigen value ( with vector )
 I provide you with one build recipe which can be used for compiling Parallel Similarity Transform's implementation into dynamically linked shared object.
 
 ```bash
+# AOT compiled for x86_64 CPU; check Makefile
 make lib
 
 # now check 
@@ -200,13 +201,16 @@ pushd wrapper/python
 python3
 ```
 
-```python3
+```python
 import similarity_transform as st
 
-# must be positive square matrix of float32
+# must be positive square matrix of `float32`
+#
+# this is input data matrix
 m = st.np.random.random((16, 16)).astype('f')
 
-λ, v, ts, itr = st.similarity_transform(m)
+ev = st.EigenValue()
+λ, v, ts, itr = ev.similarity_transform(m)
 
 # λ = maximum eigen value
 # v = eigen vector
@@ -214,9 +218,9 @@ m = st.np.random.random((16, 16)).astype('f')
 # itr = iterations required before convergence
 ```
 
-> You may want to take a look at [test case](https://github.com/itzmeanjan/eigen_value/blob/955e9fd4c4f1de59fe1008b151b7cf8c01e41e7d/wrapper/python/test.py#L8) written using Python wrapper.
+> You may want to take a look at [test case](https://github.com/itzmeanjan/eigen_value/blob/1e7aec0/wrapper/python/test.py#L8) written using Python wrapper.
 
-There's also another script for running tests on random positive square matrices.
+There's also one script for running tests on randomly generated positive square matrices.
 
 ```bash
 python3 test.py

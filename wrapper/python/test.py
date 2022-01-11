@@ -15,7 +15,7 @@ def main():
         assert st.np.all(st.np.isclose(st.np.matmul(mat, v), λ * v,
                                        atol=TOL)), "Av = λv assertion failed !"
         print(
-            f'{i:>3} passed randomized test against {DIM} x {DIM} similarity transform\tin {ts*1e-3:.3f} s\twith {itr} round(s)')
+            f'{i:>3} passed randomized test against {DIM} x {DIM} similarity transform\tin {ts:8} ms\twith {itr} round(s)')
 
 
 if __name__ == '__main__':

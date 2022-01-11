@@ -8,7 +8,8 @@ int
 main()
 {
   device d{ default_selector{} };
-  queue q{ d };
+  context c{ d };
+  queue q{ c, d };
 
   const size_t max_wg_size =
     d.get_info<info::device::max_work_group_size>() >> 1;
