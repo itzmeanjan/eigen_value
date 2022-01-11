@@ -4,12 +4,14 @@
 
 using namespace sycl;
 
-int main() {
-  device d{default_selector{}};
-  queue q{d};
+int
+main()
+{
+  device d{ default_selector{} };
+  queue q{ d };
 
   const size_t max_wg_size =
-      d.get_info<info::device::max_work_group_size>() >> 1;
+    d.get_info<info::device::max_work_group_size>() >> 1;
 
   std::cout << "running on " << d.get_info<info::device::name>() << "\n"
             << std::endl;
@@ -22,7 +24,7 @@ int main() {
 
     uint itr_count = 0;
     int64_t tm = benchmark_similarity_transform(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size, &itr_count);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size, &itr_count);
 
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
@@ -37,7 +39,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_sum_across_rows_kernel_v0(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
@@ -50,7 +52,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_sum_across_rows_kernel_v1(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
@@ -63,7 +65,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_sum_across_rows_kernel_v2(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
@@ -76,7 +78,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_find_vector_max_v0(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;
@@ -88,7 +90,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_find_vector_max_v1(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;
@@ -100,7 +102,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_find_vector_max_v2(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;
@@ -112,7 +114,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_compute_eigen_vector_v0(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;
@@ -124,7 +126,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_compute_eigen_vector_v1(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;
@@ -136,7 +138,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_compute_next_matrix(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(5) << std::left << dim << "x" << std::setw(5)
               << std::right << dim << "\t\t\t" << std::setw(10) << std::right
@@ -149,7 +151,7 @@ int main() {
     const uint dim = 1ul << i;
 
     int64_t tm = benchmark_stop_criteria_tester(
-        q, dim, dim <= max_wg_size ? dim : max_wg_size);
+      q, dim, dim <= max_wg_size ? dim : max_wg_size);
 
     std::cout << std::setw(9) << std::right << dim << "\t\t\t" << std::setw(10)
               << std::right << (double)tm * 1e-3 << " ms" << std::endl;

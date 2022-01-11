@@ -36,7 +36,7 @@ tests/test.o: tests/test.cpp
 	$(CXX) $(SYCLFLAGS) $(CXXFLAGS) $(INCLUDES) -c $^ -o $@
 
 format:
-	find . -name '*.cpp' -o -name '*.hpp' | xargs clang-format -i
+	find . -name '*.cpp' -o -name '*.hpp' | xargs clang-format -i --style=Mozilla
 
 clean:
 	find . -name '*.o' -o -name 'run' -o -name 'a.out' -o -name '*.gch' -o -name 'lib*.so' | xargs rm -f
