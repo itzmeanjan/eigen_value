@@ -6,10 +6,11 @@ TOL = 1e-3  # absoluate error tolerance in floating point math
 
 
 def main():
+    ev = st.EigenValue()  # prepare sycl queue & shared object to be interacted with
     mat = st.np.random.random((DIM, DIM)).astype(
         'f')  # converting dtype to float32
     for i in range(N):
-        λ, v, ts, itr = st.similarity_transform(mat)
+        λ, v, ts, itr = ev.similarity_transform(mat)
 
         assert st.np.all(st.np.isclose(st.np.matmul(mat, v), λ * v,
                                        atol=TOL)), "Av = λv assertion failed !"
